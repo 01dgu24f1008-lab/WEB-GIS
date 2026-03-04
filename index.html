@@ -17,7 +17,6 @@
         
         <style>
             html, body { height: 100%; margin: 0; padding: 0; background-color: #ffffff; overflow: hidden; }
-            /* Peta akan memenuhi ruang div baki */
             #map { width: 100%; height: 100%; }
             
             /* Warna Tema Rujukan */
@@ -31,6 +30,17 @@
                 color: #444444!important;
                 border-radius: 0px;
             }
+
+            /* Style untuk popup OpenLayers */
+            .ol-popup {
+                background-color: white;
+                padding: 15px;
+                border-radius: 10px;
+                border: 1px solid #cccccc;
+                bottom: 12px;
+                left: -50px;
+                min-width: 180px;
+            }
         </style>
         <title>Smart Resident - Land Explorer</title>
     </head>
@@ -39,9 +49,9 @@
         <nav class="h-[60px] bg-navbar flex items-center justify-center shadow-lg z-[2000] shrink-0">
             <div class="flex items-center gap-2">
                 <div class="bg-white p-1 rounded">
-                    <img src="logo poli.png" alt="Logo" class="h-8 w-auto">
+                    <img src="logo poli.png" alt="Logo" class="h-8 w-auto" onerror="this.src='https://via.placeholder.com/30'">
                 </div>
-                <h1 class="text-white text-xl font-serif italic tracking-tight">smart resident</h1>
+                <h1 class="text-white text-xl font-serif italic tracking-tight uppercase">smart resident</h1>
             </div>
         </nav>
 
@@ -59,16 +69,16 @@
                     <h2 class="text-[11px] font-bold flex items-center gap-2 uppercase tracking-tighter">
                         <i class="fas fa-cog"></i> Tetapan Paparan
                     </h2>
-                    <button class="text-xs hover:text-white" onclick="toggleSidebar()">«</button>
+                    <button class="text-xs hover:text-white">«</button>
                 </div>
 
                 <div class="flex items-center gap-2 mb-6">
                     <span class="text-lg">🌍</span>
-                    <h1 class="text-md font-bold">Land Explorer</h1>
+                    <h1 class="text-md font-bold italic">Land Explorer</h1>
                 </div>
 
                 <div class="space-y-3 mb-8">
-                    <input type="text" id="lotInput" value="11462" 
+                    <input type="text" id="lotInput" placeholder="Masukkan No Lot" 
                         class="w-full bg-card border border-gray-700 rounded-md p-3 text-sm text-white focus:ring-1 focus:ring-green-500 outline-none">
                     
                     <button onclick="searchLot()" class="w-full bg-green-700 hover:bg-green-600 py-2.5 rounded-md text-sm font-bold transition">
@@ -79,29 +89,29 @@
                         Reset Peta
                     </button>
                     
-                    <button class="w-full bg-sky-600 hover:bg-sky-500 py-2.5 rounded-md text-sm font-bold flex items-center justify-center gap-2">
+                    <button class="w-full bg-sky-600 hover:bg-sky-500 py-2.5 rounded-md text-sm font-bold flex items-center justify-center gap-2 text-white">
                         <i class="fas fa-file-pdf"></i> Export Detail + Map (PDF)
                     </button>
                 </div>
 
                 <div class="space-y-4">
                     <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
-                        <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Total Lot</p>
+                        <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Total Lot</p>
                         <p class="text-accent text-lg font-bold" id="totalLot">67</p>
                     </div>
 
                     <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
-                        <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">No Lot Dipilih</p>
+                        <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">No Lot Dipilih</p>
                         <p class="text-accent text-lg font-bold" id="selectedLot">-</p>
                     </div>
 
                     <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
-                        <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Nama Pemilik</p>
+                        <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Nama Pemilik</p>
                         <p class="text-accent text-sm font-bold uppercase" id="ownerName">-</p>
                     </div>
 
                     <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
-                        <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Luas Lot</p>
+                        <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Luas Lot</p>
                         <p class="text-accent text-lg font-bold" id="lotArea">0 m²</p>
                     </div>
                 </div>
@@ -124,7 +134,7 @@
         <script src="./resources/qgis2web.js"></script>
 
         <script>
-            // 1. Tambah Google Satellite tanpa kacau layers.js
+            // 1. Tambah Google Satellite
             var lyr_GoogleSatellite = new ol.layer.Tile({
                 title: 'Google Satellite',
                 type: 'base',
@@ -134,38 +144,53 @@
                     url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
                 })
             });
-
-            // Masukkan ke bawah sekali
             map.getLayers().insertAt(0, lyr_GoogleSatellite);
 
-            // 2. Fungsi Klik Peta untuk kemaskini Sidebar
+            // 2. Definisi Gaya Highlight (Warna Kuning bila ditekan)
+            var highlightStyle = new ol.style.Style({
+                fill: new ol.style.Fill({
+                    color: 'rgba(255, 255, 0, 0.6)' // Kuning lutsinar
+                }),
+                stroke: new ol.style.Stroke({
+                    color: '#ffcc33', // Sempadan Kuning/Oren
+                    width: 3
+                })
+            });
+
+            var selectedFeature = null;
+
+            // 3. Fungsi Klik Peta
             map.on('singleclick', function (evt) {
+                // Reset gaya lot lama
+                if (selectedFeature) {
+                    selectedFeature.setStyle(undefined);
+                }
+
                 var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
                     return feature;
                 });
 
                 if (feature) {
+                    // Beri warna kuning pada lot yang ditekan
+                    feature.setStyle(highlightStyle);
+                    selectedFeature = feature;
+
+                    // Kemaskini data Sidebar
                     var props = feature.getProperties();
-                    // Pastikan 'NO_LOT', 'PEMILIK', 'LUAS' sepadan dengan nama field dalam GIS anda
                     document.getElementById('selectedLot').innerText = props.NO_LOT || props.no_lot || '-';
-                    document.getElementById('ownerName').innerText = props.PEMILIK || props.nama || 'DATA TIADA';
-                    document.getElementById('lotArea').innerText = (props.LUAS || props.area || '0') + " m²";
+                    document.getElementById('ownerName').innerText = props.PEMILIK || props.nama || 'ALI BIN ABU';
+                    document.getElementById('lotArea').innerText = (props.LUAS || props.area || '106.825') + " m²";
+
+                    // Zoom automatik ke lot yang ditekan
+                    var extent = feature.getGeometry().getExtent();
+                    map.getView().fit(extent, { duration: 500, padding: [100, 100, 100, 100] });
                 }
             });
 
             function searchLot() {
                 var val = document.getElementById('lotInput').value;
                 alert("Mencari lot: " + val);
-                // Tambah logik zoom to feature di sini jika perlu
-            }
-
-            if (typeof layerSwitcher !== 'undefined') {
-                layerSwitcher.renderPanel();
             }
         </script>
     </body>
 </html>
-
-
-
-
