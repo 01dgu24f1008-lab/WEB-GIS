@@ -1,139 +1,94 @@
-<!DOCTYPE html>
-<html lang="ms">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Resident - Land Explorer</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="./resources/ol.css">
+        <link rel="stylesheet" href="resources/fontawesome-all.min.css">
+        <link href="resources/photon-geocoder-autocomplete.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="./resources/ol-layerswitcher.css">
+        <link rel="stylesheet" href="./resources/qgis2web.css">
+        <style>
+        html, body {
+            background-color: #ffffff;
+        }
+        .ol-control > * {
+            background-color: #f8f8f8!important;
+            color: #444444!important;
+            border-radius: 0px;
+        }
+        .ol-attribution a, .gcd-gl-input::placeholder, .search-layer-input-search::placeholder {
+            color: #444444!important;
+        }
+        .search-layer-input-search {
+            background-color: #f8f8f8!important;
+        }
+        .ol-control > *:focus, .ol-control >*:hover {
+            background-color: rgba(248, 248, 248, 0.7)!important;
+        } 
+        .ol-control {
+            background-color: rgba(255,255,255,.4) !important;
+            padding: 2px !important;
+        } 
+        </style>
 
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-        #map { height: calc(100vh - 60px); width: 100%; }
-        .bg-navbar { background-color: #2d5a27; } /* Hijau gelap Navbar */
-        .bg-sidebar { background-color: #1e212d; } /* Gelap Sidebar */
-        .bg-card { background-color: #111319; } /* Kotak info */
-        .text-accent { color: #4ade80; }
-    </style>
-</head>
-<body class="flex flex-col">
-
-    <nav class="h-[60px] bg-navbar flex items-center justify-center shadow-lg z-[2000]">
-        <div class="flex items-center gap-3">
-            <div class="bg-white p-1 rounded">
-                <img src="https://via.placeholder.com/40x40" alt="Logo" class="h-8"> </div>
-            <h1 class="text-white text-2xl font-serif italic">smart resident</h1>
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>Peta Google Satellite</title>
+    </head>
+    <body>
+        <div id="map">
+            <div id="popup" class="ol-popup">
+                <a href="#" id="popup-closer" class="ol-popup-closer"></a>
+                <div id="popup-content"></div>
+            </div>
         </div>
-    </nav>
+        <script src="resources/qgis2web_expressions.js"></script>
+        <script src="./resources/functions.js"></script>
+        <script src="./resources/ol.js"></script>
+        <script src="./resources/ol-layerswitcher.js"></script>
+        <script src="resources/photon-geocoder-autocomplete.min.js"></script>
+        <script src="layers/batusempadan_0.js"></script>
+        <script src="layers/tandasempadan13clean_1.js"></script>
+        <script src="layers/LOTFINAL_2.js"></script>
+        <script src="styles/batusempadan_0_style.js"></script>
+        <script src="styles/tandasempadan13clean_1_style.js"></script>
+        <script src="styles/LOTFINAL_2_style.js"></script>
+        <script src="./layers/layers.js" type="text/javascript"></script> 
+        <script src="./resources/Autolinker.min.js"></script>
+        <script src="./resources/qgis2web.js"></script>
 
-    <div class="flex flex-1 relative">
-        
-        <main class="flex-grow">
-            <div id="map"></div>
-        </main>
+        <script>
+            // Membuat layer Google Satellite
+            var lyr_GoogleSatellite = new ol.layer.Tile({
+                title: 'Google Satellite',
+                type: 'base',
+                visible: true,
+                source: new ol.source.XYZ({
+                    attributions: '&copy; <a href="https://www.google.com/intl/en_us/help/terms_maps.html">Google Maps</a>',
+                    url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
+                })
+            });
 
-        <aside class="w-80 bg-sidebar h-full text-white p-4 shadow-2xl z-[1001] overflow-y-auto">
-            <div class="flex items-center justify-between mb-6 text-gray-400">
-                <h2 class="text-sm font-semibold flex items-center gap-2 uppercase">
-                    ⚙️ Tetapan Paparan
-                </h2>
-                <button class="hover:text-white">«</button>
-            </div>
+            // Menyisipkan layer Google Satellite ke posisi paling bawah (index 0)
+            map.getLayers().insertAt(0, lyr_GoogleSatellite);
 
-            <div class="flex items-center gap-2 mb-6">
-                <span class="text-xl">🌍</span>
-                <h1 class="text-lg font-bold">Land Explorer</h1>
-            </div>
+            // Jika Anda ingin menggunakan Google Satellite Hybrid (ada nama jalan), 
+            // ganti 'lyrs=s' menjadi 'lyrs=y' pada URL di atas.
 
-            <div class="space-y-3 mb-6">
-                <input type="text" id="lotInput" value="11462" 
-                    class="w-full bg-card border border-gray-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-green-500 outline-none">
-                
-                <button onclick="searchLot()" class="w-full bg-green-700 hover:bg-green-600 py-3 rounded-lg font-bold transition">
-                    Cari Lot
-                </button>
-                
-                <button onclick="resetMap()" class="w-full bg-red-700 hover:bg-red-600 py-3 rounded-lg font-bold transition">
-                    Reset Peta
-                </button>
-                
-                <button class="w-full bg-sky-600 hover:bg-sky-500 py-3 rounded-lg font-bold flex items-center justify-center gap-2">
-                    📄 Export Detail + Map (PDF)
-                </button>
-            </div>
-
-            <div class="space-y-3">
-                <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-lg shadow-md">
-                    <p class="text-[10px] text-gray-500 font-bold uppercase">Total Lot</p>
-                    <p class="text-accent text-xl font-bold">67</p>
-                </div>
-
-                <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-lg shadow-md">
-                    <p class="text-[10px] text-gray-500 font-bold uppercase">No Lot Dipilih</p>
-                    <p class="text-accent text-xl font-bold" id="disp-lot">11462</p>
-                </div>
-
-                <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-lg shadow-md">
-                    <p class="text-[10px] text-gray-500 font-bold uppercase">Nama Pemilik</p>
-                    <p class="text-accent text-lg font-bold uppercase" id="disp-owner">Ali Bin Abu</p>
-                </div>
-
-                <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-lg shadow-md">
-                    <p class="text-[10px] text-gray-500 font-bold uppercase">Luas Lot</p>
-                    <p class="text-accent text-xl font-bold" id="disp-area">106.825 m²</p>
-                </div>
-            </div>
-        </aside>
-    </div>
-
-    <script>
-        // 1. Inisialisasi Peta
-        const map = L.map('map').setView([3.1390, 101.6869], 18); // Ganti koordinat ke lokasi lot anda
-
-        // 2. Layer Satelit (Esri World Imagery)
-        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri'
-        }).addTo(map);
-
-        // 3. Memuatkan Data Lot (GeoJSON)
-        // Pastikan anda mempunyai fail .geojson di folder yang sama
-        fetch('lot_saya.geojson') 
-            .then(res => res.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    style: {
-                        color: "#4ade80", // Hijau terang untuk sempadan
-                        weight: 2,
-                        fillColor: "#4ade80",
-                        fillOpacity: 0.3 // Transparensi lot
-                    },
-                    onEachFeature: function(feature, layer) {
-                        layer.on('click', function() {
-                            // Update sidebar apabila lot diklik
-                            document.getElementById('disp-lot').innerText = feature.properties.no_lot || 'N/A';
-                            document.getElementById('disp-owner').innerText = feature.properties.pemilik || 'N/A';
-                            document.getElementById('disp-area').innerText = (feature.properties.luas || '0') + " m²";
-                            
-                            // Highlight lot yang dipilih
-                            layer.setStyle({ color: 'orange', weight: 4 });
-                        });
-                    }
-                }).addTo(map);
-            })
-            .catch(err => console.error("Gagal muat GeoJSON:", err));
-
-        // Fungsi Button
-        function searchLot() {
-            const val = document.getElementById('lotInput').value;
-            alert("Mencari Lot: " + val);
-        }
-
-        function resetMap() {
-            map.setView([3.1390, 101.6869], 18);
-        }
-    </script>
-</body>
+            // Memastikan Layer Switcher terupdate jika ada
+            if (typeof layerSwitcher !== 'undefined') {
+                layerSwitcher.renderPanel();
+            }
+        </script>
+    </body>
 </html>
