@@ -1,141 +1,150 @@
-<!DOCTYPE html>
-<html lang="ms">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Resident - Land Explorer</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-        #map { height: 100%; width: 100%; }
-        /* Warna mengikut tema imej anda */
-        .bg-navbar { background-color: #2d5a27; } 
-        .bg-sidebar { background-color: #1e212d; }
-        .bg-card { background-color: #111319; }
-        .text-accent { color: #4ade80; }
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <title>Smart Resident - Land Explorer</title>
         
-        /* Custom Scrollbar untuk Sidebar */
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
-    </style>
-</head>
-<body class="flex flex-col h-screen">
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="resources/fontawesome-all.min.css">
+        
+        <link rel="stylesheet" href="./resources/ol.css">
+        <link href="resources/photon-geocoder-autocomplete.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="./resources/ol-layerswitcher.css">
+        <link rel="stylesheet" href="./resources/qgis2web.css">
 
-    <nav class="h-[60px] bg-navbar flex items-center justify-center shadow-md z-[2000] shrink-0">
-        <div class="flex items-center gap-2">
-            <div class="bg-white p-1 rounded">
-                <img src="logo.png" alt="Logo" class="h-6" onerror="this.src='https://via.placeholder.com/30'">
+        <style>
+            html, body { height: 100%; margin: 0; padding: 0; background-color: #ffffff; }
+            #map { width: 100%; height: 100%; }
+            .bg-navbar { background-color: #2d5a27; } 
+            .bg-sidebar { background-color: #1e212d; }
+            .bg-card { background-color: #111319; }
+            .text-accent { color: #4ade80; }
+        </style>
+    </head>
+    <body class="flex flex-col h-screen overflow-hidden">
+
+        <nav class="h-[60px] bg-navbar flex items-center justify-center shadow-md z-[2000] shrink-0">
+            <div class="flex items-center gap-2">
+                <div class="bg-white p-1 rounded">
+                    <img src="https://via.placeholder.com/30" alt="Logo" class="h-6">
+                </div>
+                <h1 class="text-white text-xl font-serif italic tracking-tight">smart resident</h1>
             </div>
-            <h1 class="text-white text-xl font-serif italic tracking-tight">smart resident</h1>
+        </nav>
+
+        <div class="flex flex-1 overflow-hidden relative">
+            
+            <div id="map" class="flex-1 z-0">
+                <div id="popup" class="ol-popup">
+                    <a href="#" id="popup-closer" class="ol-popup-closer"></a>
+                    <div id="popup-content"></div>
+                </div>
+            </div>
+
+            <aside class="w-80 bg-sidebar h-full text-white p-5 shadow-2xl z-[1001] overflow-y-auto shrink-0 border-l border-gray-800">
+                <div class="flex items-center justify-between mb-6 text-gray-400">
+                    <h2 class="text-[11px] font-bold flex items-center gap-2 uppercase tracking-tighter">
+                        <i class="fas fa-cog"></i> Tetapan Paparan
+                    </h2>
+                    <button class="text-xs hover:text-white">«</button>
+                </div>
+
+                <div class="flex items-center gap-2 mb-6">
+                    <span class="text-lg">🌍</span>
+                    <h1 class="text-md font-bold">Land Explorer</h1>
+                </div>
+
+                <div class="space-y-3 mb-8">
+                    <input type="text" id="lotInput" value="11462" 
+                        class="w-full bg-card border border-gray-700 rounded-md p-3 text-sm text-white focus:ring-1 focus:ring-green-500 outline-none">
+                    
+                    <button onclick="searchLot()" class="w-full bg-green-700 hover:bg-green-600 py-2.5 rounded-md text-sm font-bold transition">
+                        Cari Lot
+                    </button>
+                    
+                    <button onclick="location.reload()" class="w-full bg-red-600 hover:bg-red-500 py-2.5 rounded-md text-sm font-bold transition">
+                        Reset Peta
+                    </button>
+                    
+                    <button class="w-full bg-sky-600 hover:bg-sky-500 py-2.5 rounded-md text-sm font-bold flex items-center justify-center gap-2">
+                        <i class="fas fa-file-pdf"></i> Export Detail + Map (PDF)
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
+                        <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Total Lot</p>
+                        <p class="text-accent text-lg font-bold" id="total-lot">67</p>
+                    </div>
+
+                    <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
+                        <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">No Lot Dipilih</p>
+                        <p class="text-accent text-lg font-bold" id="selected-lot">11462</p>
+                    </div>
+
+                    <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
+                        <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Nama Pemilik</p>
+                        <p class="text-accent text-md font-bold uppercase" id="owner-name">ALI BIN ABU</p>
+                    </div>
+
+                    <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
+                        <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Luas Lot</p>
+                        <p class="text-accent text-lg font-bold" id="lot-area">106.825 m²</p>
+                    </div>
+                </div>
+            </aside>
         </div>
-    </nav>
 
-    <div class="flex flex-1 overflow-hidden relative">
-        
-        <div id="map" class="z-0"></div>
+        <script src="resources/qgis2web_expressions.js"></script>
+        <script src="./resources/functions.js"></script>
+        <script src="./resources/ol.js"></script>
+        <script src="./resources/ol-layerswitcher.js"></script>
+        <script src="resources/photon-geocoder-autocomplete.min.js"></script>
+        <script src="layers/batusempadan_0.js"></script>
+        <script src="layers/tandasempadan13clean_1.js"></script>
+        <script src="layers/LOTFINAL_2.js"></script>
+        <script src="styles/batusempadan_0_style.js"></script>
+        <script src="styles/tandasempadan13clean_1_style.js"></script>
+        <script src="styles/LOTFINAL_2_style.js"></script>
+        <script src="./layers/layers.js" type="text/javascript"></script> 
+        <script src="./resources/Autolinker.min.js"></script>
+        <script src="./resources/qgis2web.js"></script>
 
-        <aside class="w-80 bg-sidebar h-full text-white p-5 shadow-2xl z-[1001] overflow-y-auto shrink-0 border-l border-gray-800">
-            <div class="flex items-center justify-between mb-6 text-gray-400">
-                <h2 class="text-[11px] font-bold flex items-center gap-2 uppercase tracking-tighter">
-                    <span class="text-sm">⚙️</span> Tetapan Paparan
-                </h2>
-                <button class="text-xs hover:text-white">«</button>
-            </div>
-
-            <div class="flex items-center gap-2 mb-6">
-                <span class="text-lg">🌍</span>
-                <h1 class="text-md font-bold">Land Explorer</h1>
-            </div>
-
-            <div class="space-y-3 mb-8">
-                <input type="text" id="lotInput" value="11462" 
-                    class="w-full bg-card border border-gray-700 rounded-md p-3 text-sm text-white focus:ring-1 focus:ring-green-500 outline-none">
-                
-                <button onclick="searchLot()" class="w-full bg-green-700 hover:bg-green-600 py-2.5 rounded-md text-sm font-bold transition">
-                    Cari Lot
-                </button>
-                
-                <button onclick="resetMap()" class="w-full bg-red-600 hover:bg-red-500 py-2.5 rounded-md text-sm font-bold transition">
-                    Reset Peta
-                </button>
-                
-                <button class="w-full bg-sky-600 hover:bg-sky-500 py-2.5 rounded-md text-sm font-bold flex items-center justify-center gap-2">
-                    📄 Export Detail + Map (PDF)
-                </button>
-            </div>
-
-            <div class="space-y-4">
-                <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
-                    <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Total Lot</p>
-                    <p class="text-accent text-lg font-bold">67</p>
-                </div>
-
-                <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
-                    <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">No Lot Dipilih</p>
-                    <p class="text-accent text-lg font-bold" id="disp-lot">11462</p>
-                </div>
-
-                <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
-                    <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Nama Pemilik</p>
-                    <p class="text-accent text-md font-bold uppercase" id="disp-owner">ALI BIN ABU</p>
-                </div>
-
-                <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
-                    <p class="text-[9px] text-gray-500 font-bold uppercase mb-1">Luas Lot</p>
-                    <p class="text-accent text-lg font-bold" id="disp-area">106.825 m²</p>
-                </div>
-            </div>
-        </aside>
-    </div>
-
-    <script>
-        // 1. Inisialisasi Peta (Tukar koordinat mengikut kawasan lot anda)
-        const map = L.map('map').setView([3.1390, 101.6869], 18); 
-
-        // 2. Layer Satelit
-        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri'
-        }).addTo(map);
-
-        // 3. Memuatkan GeoJSON (Gantikan 'lot.geojson' dengan nama fail anda)
-        fetch('lot.geojson') 
-            .then(res => res.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    style: {
-                        color: "#4ade80", 
-                        weight: 1.5,
-                        fillColor: "#4ade80",
-                        fillOpacity: 0.2
-                    },
-                    onEachFeature: function(feature, layer) {
-                        layer.on('click', function() {
-                            // Update sidebar secara dinamik
-                            document.getElementById('disp-lot').innerText = feature.properties.no_lot || '-';
-                            document.getElementById('disp-owner').innerText = feature.properties.pemilik || '-';
-                            document.getElementById('disp-area').innerText = (feature.properties.luas || '0') + " m²";
-                            
-                            // Highlight lot
-                            layer.setStyle({ color: 'yellow', weight: 3 });
-                        });
-                    }
-                }).addTo(map);
+        <script>
+            // Setup Google Satellite
+            var lyr_GoogleSatellite = new ol.layer.Tile({
+                title: 'Google Satellite',
+                type: 'base',
+                visible: true,
+                source: new ol.source.XYZ({
+                    attributions: '&copy; Google Maps',
+                    url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
+                })
             });
 
-        function searchLot() {
-            const input = document.getElementById('lotInput').value;
-            alert("Mencari lot: " + input);
-            // Tambah logik carian anda di sini
-        }
+            // Masukkan ke dalam map yang di-generate oleh qgis2web.js
+            if (typeof map !== 'undefined') {
+                map.getLayers().insertAt(0, lyr_GoogleSatellite);
+                
+                // Tambahan: Logik klik untuk kemaskini Sidebar
+                map.on('singleclick', function(evt) {
+                    map.forEachFeatureAtPixel(evt.pixel, function(feature) {
+                        if (feature) {
+                            var props = feature.getProperties();
+                            // Ganti 'NO_LOT', 'PEMILIK', dsb mengikut nama kolom dalam GIS anda
+                            document.getElementById('selected-lot').innerText = props.NO_LOT || '-';
+                            document.getElementById('owner-name').innerText = props.PEMILIK || 'DATA TIADA';
+                            document.getElementById('lot-area').innerText = (props.LUAS || '0') + " m²";
+                        }
+                    });
+                });
+            }
 
-        function resetMap() {
-            map.setView([3.1390, 101.6869], 18);
-        }
-    </script>
-</body>
+            function searchLot() {
+                alert("Mencari lot: " + document.getElementById('lotInput').value);
+            }
+        </script>
+    </body>
 </html>
