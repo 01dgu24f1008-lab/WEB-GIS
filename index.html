@@ -5,6 +5,7 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
         <script src="https://cdn.tailwindcss.com"></script>
+        
         <link rel="stylesheet" href="./resources/ol.css">
         <link rel="stylesheet" href="resources/fontawesome-all.min.css">
         <link rel="stylesheet" href="./resources/qgis2web.css">
@@ -68,17 +69,17 @@
 
             var selectedFeature = null;
 
-            // 3. Fungsi Cari Lot
+            // 3. Fungsi Cari Lot & Zoom
             function searchLot() {
                 var val = document.getElementById('lotInput').value.trim();
                 if (!val) return;
 
                 var found = false;
-                // Pastikan 'lyr_LOTFINAL_2' adalah nama pembolehubah yang betul dari layers.js
+                // Pastikan 'lyr_LOTFINAL_2' sesuai dengan fail layers.js anda
                 var source = lyr_LOTFINAL_2.getSource(); 
                 
                 source.getFeatures().forEach(function(feature) {
-                    // Sila tukar 'NO_LOT' kepada nama column sebenar dalam data anda
+                    // Semak atribut ini dengan fail .js anda (contoh: NO_LOT atau no_lot)
                     var lotNo = feature.get('NO_LOT') || feature.get('no_lot');
                     
                     if (lotNo && lotNo.toString() === val) {
@@ -90,8 +91,9 @@
                         
                         document.getElementById('selectedLot').innerText = lotNo;
                         
+                        // Zoom ke koordinat lot
                         var extent = feature.getGeometry().getExtent();
-                        map.getView().fit(extent, { duration: 1000, padding: [100, 100, 100, 100] });
+                        map.getView().fit(extent, { duration: 1000, padding: [50, 50, 50, 50] });
                     }
                 });
 
