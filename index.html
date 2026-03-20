@@ -134,105 +134,90 @@
         <script src="./resources/qgis2web.js"></script>
 
         <script>
-    // 1. Tambah Google Satellite sebagai Base Layer
-    var lyr_GoogleSatellite = new ol.layer.Tile({
-        title: 'Google Satellite',
-        type: 'base',
-        visible: true,
-        source: new ol.source.XYZ({
-            attributions: '&copy; Google Maps',
-            url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
-        })
-    });
-    map.getLayers().insertAt(0, lyr_GoogleSatellite);
-
-    // 2. Gaya Highlight (Kuning)
-    var highlightStyle = new ol.style.Style({
-        fill: new ol.style.Fill({
-            color: 'rgba(255, 255, 0, 0.6)'
-        }),
-        stroke: new ol.style.Stroke({
-            color: '#ffcc33',
-            width: 3
-        })
-    });
-
-    var selectedFeature = null;
-
-    // 3. Fungsi Kemaskini Sidebar & Zoom (Pusat Kawalan)
-    function updateSidebarAndZoom(feature) {
-        if (selectedFeature) {
-            selectedFeature.setStyle(undefined); // Reset warna lot sebelum ini
-        }
-
-        if (feature) {
-            feature.setStyle(highlightStyle);
-            selectedFeature = feature;
-
-            var props = feature.getProperties();
-            
-            // Kemaskini elemen UI Sidebar berdasarkan field dalam layers.js anda
-            document.getElementById('selectedLot').innerText = props['NO_LOT'] || '-';
-            document.getElementById('ownerName').innerText = props['tsp — pe'] || 'TIADA DATA'; // Menggunakan field tsp — pe sebagai ganti nama
-            document.getElementById('lotArea').innerText = (props['AREA'] || '0') + " m²";
-
-            // Zoom ke lokasi lot
-            var extent = feature.getGeometry().getExtent();
-            map.getView().fit(extent, { 
-                duration: 800, 
-                padding: [100, 100, 100, 100],
-                maxZoom: 19 
+    // Guna window.onload untuk pastikan 'map' dan 'lyr_LOTFINAL_2' sudah wujud
+    window.onload = function() {
+        
+        // 1. Tambah Google Satellite (Optional - jika belum ada)
+        if (typeof map !== 'undefined') {
+            var lyr_GoogleSatellite = new ol.layer.Tile({
+                title: 'Google Satellite',
+                type: 'base',
+                visible: true,
+                source: new ol.source.XYZ({
+                    url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
+                })
             });
+            map.getLayers().insertAt(0, lyr_GoogleSatellite);
         }
-    }
 
-    // 4. Event: Klik pada peta
-    map.on('singleclick', function (evt) {
-        var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
-            return feature;
+        // 2. Gaya Highlight
+        var highlightStyle = new ol.style.Style({
+            fill: new ol.style.Fill({ color: 'rgba(255, 255, 0, 0.6)' }),
+            stroke: new ol.style.Stroke({ color: '#ffcc33', width: 3 })
         });
-        
-        if (feature) {
-            updateSidebarAndZoom(feature);
-        }
-    });
 
-    // 5. FUNGSI CARIAN UTAMA
-    function searchLot() {
-        var inputVal = document.getElementById('lotInput').value.trim();
-        
-        if (!inputVal) {
-            alert("Sila masukkan No Lot untuk dicari.");
-            return;
-        }
+        var selectedFeature = null;
 
-        // Ambil semua data dari layer LOT FINAL
-        var source = lyr_LOTFINAL_2.getSource();
-        var features = source.getFeatures();
-        var found = false;
-
-        for (var i = 0; i < features.length; i++) {
-            var props = features[i].getProperties();
-            // Kita bandingkan input dengan field 'NO_LOT'
-            if (props['NO_LOT'] && props['NO_LOT'].toString().toLowerCase() === inputVal.toLowerCase()) {
-                updateSidebarAndZoom(features[i]);
-                found = true;
-                break; // Berhenti loop jika dah jumpa
+        // 3. Fungsi Global untuk Carian (Supaya butang boleh panggil)
+        window.searchLot = function() {
+            var inputVal = document.getElementById('lotInput').value.trim();
+            
+            if (!inputVal) {
+                alert("Sila masukkan No Lot.");
+                return;
             }
-        }
 
-        if (!found) {
-            alert("No Lot " + inputVal + " tidak dijumpai dalam sistem.");
-        }
-    }
+            // Pastikan layer wujud
+            if (typeof lyr_LOTFINAL_2 === 'undefined') {
+                console.error("Layer lyr_LOTFINAL_2 tidak dijumpai!");
+                return;
+            }
 
-    // Membolehkan tekan 'Enter' pada keyboard
-    document.getElementById('lotInput').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') {
-            searchLot();
-        }
-    });
-</script>
+            var source = lyr_LOTFINAL_2.getSource();
+            var features = source.getFeatures();
+            var found = false;
+
+            for (var i = 0; i < features.length; i++) {
+                var props = features[i].getProperties();
+                
+                // Semak field 'NO_LOT' (ikut layers.js anda)
+                if (props['NO_LOT'] && props['NO_LOT'].toString().toLowerCase() === inputVal.toLowerCase()) {
+                    
+                    // Reset highlight lama
+                    if (selectedFeature) { selectedFeature.setStyle(undefined); }
+
+                    // Highlight baru
+                    features[i].setStyle(highlightStyle);
+                    selectedFeature = features[i];
+
+                    // Update UI Sidebar
+                    document.getElementById('selectedLot').innerText = props['NO_LOT'] || '-';
+                    document.getElementById('ownerName').innerText = props['tsp — pe'] || 'TIADA REKOD';
+                    document.getElementById('lotArea').innerText = (props['AREA'] || '0') + " m²";
+
+                    // Zoom
+                    var extent = features[i].getGeometry().getExtent();
+                    map.getView().fit(extent, { 
+                        duration: 800, 
+                        padding: [100, 100, 100, 100],
+                        maxZoom: 20 
+                    });
+
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                alert("No Lot " + inputVal + " tidak dijumpai.");
+            }
+        };
+
+        // 4. Benarkan tekan Enter
+        document.getElementById('lotInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') { window.searchLot(); }
+        });
+    };
 </script>
         </script>
     </body>
