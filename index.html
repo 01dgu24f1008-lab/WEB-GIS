@@ -35,14 +35,27 @@
                 <button onclick="searchLot()" class="w-full bg-green-700 hover:bg-green-600 py-2.5 rounded-md text-sm font-bold mb-2">Cari Lot</button>
                 <button onclick="location.reload()" class="w-full bg-red-600 hover:bg-red-500 py-2.5 rounded-md text-sm font-bold">Reset Peta</button>
                 
-                <div class="mt-6 space-y-4">
-                    <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
-                        <p class="text-[9px] text-gray-400 font-bold uppercase">No Lot Dipilih</p>
-                        <p class="text-accent text-lg font-bold" id="selectedLot">-</p>
-                    </div>
-                </div>
-            </aside>
-        </div>
+                <div class="mt-6 space-y-3">
+    <div class="bg-card border-l-4 border-blue-500 p-3 rounded-r-md">
+        <p class="text-[9px] text-gray-400 font-bold uppercase">Total Lot</p>
+        <p class="text-blue-400 text-lg font-bold" id="totalLotCount">0</p>
+    </div>
+
+    <div class="bg-card border-l-4 border-green-500 p-3 rounded-r-md">
+        <p class="text-[9px] text-gray-400 font-bold uppercase">No Lot Dipilih</p>
+        <p class="text-accent text-lg font-bold" id="selectedLot">-</p>
+    </div>
+
+    <div class="bg-card border-l-4 border-yellow-500 p-3 rounded-r-md">
+        <p class="text-[9px] text-gray-400 font-bold uppercase">Nama Pemilik</p>
+        <p class="text-yellow-400 text-lg font-bold" id="ownerName">-</p>
+    </div>
+
+    <div class="bg-card border-l-4 border-purple-500 p-3 rounded-r-md">
+        <p class="text-[9px] text-gray-400 font-bold uppercase">Luas Lot</p>
+        <p class="text-purple-400 text-lg font-bold" id="lotArea">-</p>
+    </div>
+</div>
 
         <script src="./resources/ol.js"></script>
         <script src="layers/LOTFINAL_2.js"></script> 
@@ -58,55 +71,45 @@
             var selectedFeature = null;
 
             function searchLot() {
+    function searchLot() {
     var val = document.getElementById('lotInput').value.trim();
     if (!val) return;
-
-    // 1. Pastikan layer wujud
-    if (typeof lyr_LOTFINAL_2 === 'undefined') {
-        console.error("Layer lyr_LOTFINAL_2 tidak dijumpai!");
-        return;
-    }
 
     var source = lyr_LOTFINAL_2.getSource();
     var features = source.getFeatures();
     
-    // Debug: Tengok dalam Console (F12) berapa feature yang ada
-    console.log("Jumlah feature dikesan:", features.length);
+    // Papar jumlah total lot secara automatik
+    document.getElementById('totalLotCount').innerText = features.length;
 
     var found = false;
 
     features.forEach(function(feature) {
-        // Ambil semua properties untuk mudahkan carian
+        // Ambil data dari attribute table (Pastikan nama field 'NO_LOT' dsb betul)
         var props = feature.getProperties();
-        
-        // Cuba cari dalam beberapa variasi nama field yang biasa
-        var lotNo = props['NO_LOT'] || props['no_lot'] || props['Lot'] || props['id'];
+        var lotNo = props['NO_LOT'] || props['no_lot'];
 
-        if (lotNo && lotNo.toString().toLowerCase() === val.toLowerCase()) {
+        if (lotNo && lotNo.toString() === val) {
             found = true;
             
-            // Reset style lama
             if (selectedFeature) selectedFeature.setStyle(null);
-            
-            // Highlight
             feature.setStyle(highlightStyle);
             selectedFeature = feature;
-            
+
+            // Masukkan data ke dalam kotak UI
             document.getElementById('selectedLot').innerText = lotNo;
+            document.getElementById('ownerName').innerText = props['NAMA'] || props['Pemilik'] || "Tiada Data";
             
-            // Zoom ke lot
+            // Format keluasan (contoh tambah m²)
+            var area = props['LUAS'] || props['Area'] || "-";
+            document.getElementById('lotArea').innerText = area + " m²";
+
+            // Zoom ke lokasi
             var extent = feature.getGeometry().getExtent();
-            map.getView().fit(extent, { 
-                duration: 1000, 
-                padding: [100, 100, 100, 100],
-                maxZoom: 18 // Elakkan zoom terlalu dekat sampai pecah
-            });
+            map.getView().fit(extent, { duration: 1000, padding: [100, 100, 100, 100] });
         }
     });
 
-    if (!found) {
-        alert("Lot " + val + " tidak dijumpai. Sila pastikan No Lot betul.");
-    }
+    if (!found) alert("Lot " + val + " tidak dijumpai.");
 }
         </script>
     </body>
