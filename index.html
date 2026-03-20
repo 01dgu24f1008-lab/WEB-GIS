@@ -63,54 +63,63 @@
         <script src="./resources/qgis2web.js"></script>
 
         <script>
-            var highlightStyle = new ol.style.Style({
-                fill: new ol.style.Fill({ color: 'rgba(255, 255, 0, 0.6)' }),
-                stroke: new ol.style.Stroke({ color: '#ffcc33', width: 3 })
-            });
-
-            var selectedFeature = null;
-
-            function searchLot() {
-    function searchLot() {
-    var val = document.getElementById('lotInput').value.trim();
-    if (!val) return;
-
-    var source = lyr_LOTFINAL_2.getSource();
-    var features = source.getFeatures();
-    
-    // Papar jumlah total lot secara automatik
-    document.getElementById('totalLotCount').innerText = features.length;
-
-    var found = false;
-
-    features.forEach(function(feature) {
-        // Ambil data dari attribute table (Pastikan nama field 'NO_LOT' dsb betul)
-        var props = feature.getProperties();
-        var lotNo = props['NO_LOT'] || props['no_lot'];
-
-        if (lotNo && lotNo.toString() === val) {
-            found = true;
-            
-            if (selectedFeature) selectedFeature.setStyle(null);
-            feature.setStyle(highlightStyle);
-            selectedFeature = feature;
-
-            // Masukkan data ke dalam kotak UI
-            document.getElementById('selectedLot').innerText = lotNo;
-            document.getElementById('ownerName').innerText = props['NAMA'] || props['Pemilik'] || "Tiada Data";
-            
-            // Format keluasan (contoh tambah m²)
-            var area = props['LUAS'] || props['Area'] || "-";
-            document.getElementById('lotArea').innerText = area + " m²";
-
-            // Zoom ke lokasi
-            var extent = feature.getGeometry().getExtent();
-            map.getView().fit(extent, { duration: 1000, padding: [100, 100, 100, 100] });
-        }
+    var highlightStyle = new ol.style.Style({
+        fill: new ol.style.Fill({ color: 'rgba(255, 255, 0, 0.6)' }),
+        stroke: new ol.style.Stroke({ color: '#ffcc33', width: 3 })
     });
 
-    if (!found) alert("Lot " + val + " tidak dijumpai.");
-}
+    var selectedFeature = null;
+
+    // Fungsi untuk kira total lot sebaik sahaja peta sedia
+    function updateStats() {
+        if (typeof lyr_LOTFINAL_2 !== 'undefined') {
+            var count = lyr_LOTFINAL_2.getSource().getFeatures().length;
+            document.getElementById('totalLotCount').innerText = count;
+        }
+    }
+
+    // Jalankan updateStats selepas 2 saat (bagi masa layer load)
+    setTimeout(updateStats, 2000);
+
+    function searchLot() {
+        var val = document.getElementById('lotInput').value.trim();
+        if (!val) return;
+
+        if (typeof lyr_LOTFINAL_2 === 'undefined') {
+            alert("Ralat: Layer 'lyr_LOTFINAL_2' tidak dijumpai. Sila semak fail layers.js");
+            return;
+        }
+
+        var source = lyr_LOTFINAL_2.getSource();
+        var features = source.getFeatures();
+        var found = false;
+
+        features.forEach(function(feature) {
+            var props = feature.getProperties();
+            
+            // Cuba pelbagai kemungkinan nama field (NO_LOT, no_lot, lot, dsb)
+            var lotNo = props['NO_LOT'] || props['no_lot'] || props['LOT'] || props['id'];
+
+            if (lotNo && lotNo.toString().toLowerCase() === val.toLowerCase()) {
+                found = true;
+                if (selectedFeature) selectedFeature.setStyle(null);
+                
+                feature.setStyle(highlightStyle);
+                selectedFeature = feature;
+
+                // Kemaskini UI
+                document.getElementById('selectedLot').innerText = lotNo;
+                document.getElementById('ownerName').innerText = props['NAMA'] || props['PEMILIK'] || props['Owner'] || "Tiada Data";
+                document.getElementById('lotArea').innerText = (props['LUAS'] || props['AREA'] || "0") + " m²";
+
+                var extent = feature.getGeometry().getExtent();
+                map.getView().fit(extent, { duration: 1000, padding: [100, 100, 100, 100] });
+            }
+        });
+
+        if (!found) alert("Lot " + val + " tidak dijumpai dalam sistem.");
+    }
+</script>
         </script>
     </body>
 </html>
