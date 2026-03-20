@@ -14,7 +14,7 @@
             html, body { height: 100%; margin: 0; padding: 0; background-color: #ffffff; overflow: hidden; }
             #map { width: 100%; height: 100%; }
             .bg-navbar { background-color: #2d5a27; } 
-            .bg-sidebar { background-color: #1x212d; }
+            .bg-sidebar { background-color: #1a212d; }
             .bg-card { background-color: #111319; }
             .text-accent { color: #4ade80; }
             .ol-popup { background-color: white; padding: 15px; border-radius: 10px; border: 1px solid #cccccc; bottom: 12px; left: -50px; min-width: 180px; }
@@ -31,31 +31,35 @@
             <div id="map" class="flex-1 z-0 relative"></div>
 
             <aside class="w-80 bg-sidebar h-full text-white p-5 shadow-2xl z-[1001] overflow-y-auto shrink-0 border-l border-gray-800">
-                <input type="text" id="lotInput" placeholder="Masukkan No Lot" class="w-full bg-card border border-gray-700 rounded-md p-3 text-sm text-white mb-2">
-                <button onclick="searchLot()" class="w-full bg-green-700 hover:bg-green-600 py-2.5 rounded-md text-sm font-bold mb-2">Cari Lot</button>
-                <button onclick="location.reload()" class="w-full bg-red-600 hover:bg-red-500 py-2.5 rounded-md text-sm font-bold">Reset Peta</button>
+                <div class="mb-6">
+                    <input type="text" id="lotInput" placeholder="Masukkan No Lot" class="w-full bg-card border border-gray-700 rounded-md p-3 text-sm text-white mb-2 focus:outline-none focus:border-green-500">
+                    <button onclick="searchLot()" class="w-full bg-green-700 hover:bg-green-600 py-2.5 rounded-md text-sm font-bold mb-2 transition-colors">Cari Lot</button>
+                    <button onclick="location.reload()" class="w-full bg-red-600 hover:bg-red-500 py-2.5 rounded-md text-sm font-bold transition-colors">Reset Peta</button>
+                </div>
                 
-                <div class="mt-6 space-y-3">
-    <div class="bg-card border-l-4 border-blue-500 p-3 rounded-r-md">
-        <p class="text-[9px] text-gray-400 font-bold uppercase">Total Lot</p>
-        <p class="text-blue-400 text-lg font-bold" id="totalLotCount">0</p>
-    </div>
+                <div class="space-y-3">
+                    <div class="bg-card border-l-4 border-blue-500 p-3 rounded-r-md shadow-md">
+                        <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Total Lot Dikesan</p>
+                        <p class="text-blue-400 text-lg font-bold" id="totalLotCount">Memuatkan...</p>
+                    </div>
 
-    <div class="bg-card border-l-4 border-green-500 p-3 rounded-r-md">
-        <p class="text-[9px] text-gray-400 font-bold uppercase">No Lot Dipilih</p>
-        <p class="text-accent text-lg font-bold" id="selectedLot">-</p>
-    </div>
+                    <div class="bg-card border-l-4 border-green-500 p-3 rounded-r-md shadow-md">
+                        <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">No Lot Dipilih</p>
+                        <p class="text-accent text-lg font-bold" id="selectedLot">-</p>
+                    </div>
 
-    <div class="bg-card border-l-4 border-yellow-500 p-3 rounded-r-md">
-        <p class="text-[9px] text-gray-400 font-bold uppercase">Nama Pemilik</p>
-        <p class="text-yellow-400 text-lg font-bold" id="ownerName">-</p>
-    </div>
+                    <div class="bg-card border-l-4 border-yellow-500 p-3 rounded-r-md shadow-md">
+                        <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Nama Pemilik</p>
+                        <p class="text-yellow-400 text-lg font-bold" id="ownerName">-</p>
+                    </div>
 
-    <div class="bg-card border-l-4 border-purple-500 p-3 rounded-r-md">
-        <p class="text-[9px] text-gray-400 font-bold uppercase">Luas Lot</p>
-        <p class="text-purple-400 text-lg font-bold" id="lotArea">-</p>
-    </div>
-</div>
+                    <div class="bg-card border-l-4 border-purple-500 p-3 rounded-r-md shadow-md">
+                        <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Luas Lot</p>
+                        <p class="text-purple-400 text-lg font-bold" id="lotArea">-</p>
+                    </div>
+                </div>
+            </aside>
+        </div>
 
         <script src="./resources/ol.js"></script>
         <script src="layers/LOTFINAL_2.js"></script> 
@@ -63,63 +67,94 @@
         <script src="./resources/qgis2web.js"></script>
 
         <script>
-    var highlightStyle = new ol.style.Style({
-        fill: new ol.style.Fill({ color: 'rgba(255, 255, 0, 0.6)' }),
-        stroke: new ol.style.Stroke({ color: '#ffcc33', width: 3 })
-    });
+            var highlightStyle = new ol.style.Style({
+                fill: new ol.style.Fill({ color: 'rgba(255, 255, 0, 0.4)' }),
+                stroke: new ol.style.Stroke({ color: '#ffcc33', width: 4 })
+            });
 
-    var selectedFeature = null;
+            var selectedFeature = null;
 
-    // Fungsi untuk kira total lot sebaik sahaja peta sedia
-    function updateStats() {
-        if (typeof lyr_LOTFINAL_2 !== 'undefined') {
-            var count = lyr_LOTFINAL_2.getSource().getFeatures().length;
-            document.getElementById('totalLotCount').innerText = count;
-        }
-    }
-
-    // Jalankan updateStats selepas 2 saat (bagi masa layer load)
-    setTimeout(updateStats, 2000);
-
-    function searchLot() {
-        var val = document.getElementById('lotInput').value.trim();
-        if (!val) return;
-
-        if (typeof lyr_LOTFINAL_2 === 'undefined') {
-            alert("Ralat: Layer 'lyr_LOTFINAL_2' tidak dijumpai. Sila semak fail layers.js");
-            return;
-        }
-
-        var source = lyr_LOTFINAL_2.getSource();
-        var features = source.getFeatures();
-        var found = false;
-
-        features.forEach(function(feature) {
-            var props = feature.getProperties();
-            
-            // Cuba pelbagai kemungkinan nama field (NO_LOT, no_lot, lot, dsb)
-            var lotNo = props['NO_LOT'] || props['no_lot'] || props['LOT'] || props['id'];
-
-            if (lotNo && lotNo.toString().toLowerCase() === val.toLowerCase()) {
-                found = true;
-                if (selectedFeature) selectedFeature.setStyle(null);
-                
-                feature.setStyle(highlightStyle);
-                selectedFeature = feature;
-
-                // Kemaskini UI
-                document.getElementById('selectedLot').innerText = lotNo;
-                document.getElementById('ownerName').innerText = props['NAMA'] || props['PEMILIK'] || props['Owner'] || "Tiada Data";
-                document.getElementById('lotArea').innerText = (props['LUAS'] || props['AREA'] || "0") + " m²";
-
-                var extent = feature.getGeometry().getExtent();
-                map.getView().fit(extent, { duration: 1000, padding: [100, 100, 100, 100] });
+            // Fungsi untuk kemaskini statistik secara berkala sehingga data sedia
+            function autoUpdateStats() {
+                if (typeof lyr_LOTFINAL_2 !== 'undefined') {
+                    var source = lyr_LOTFINAL_2.getSource();
+                    var count = source.getFeatures().length;
+                    
+                    if (count > 0) {
+                        document.getElementById('totalLotCount').innerText = count;
+                        console.log("Data berjaya dimuatkan: " + count + " lot.");
+                        return; // Berhenti jika dah jumpa data
+                    }
+                }
+                // Cuba lagi selepas 1 saat jika belum jumpa
+                setTimeout(autoUpdateStats, 1000);
             }
-        });
 
-        if (!found) alert("Lot " + val + " tidak dijumpai dalam sistem.");
-    }
-</script>
+            // Mula menyemak data
+            autoUpdateStats();
+
+            function searchLot() {
+                var val = document.getElementById('lotInput').value.trim();
+                if (!val) {
+                    alert("Sila masukkan nombor lot.");
+                    return;
+                }
+
+                if (typeof lyr_LOTFINAL_2 === 'undefined') {
+                    alert("Ralat: Data lapisan (layer) tidak dijumpai.");
+                    return;
+                }
+
+                var source = lyr_LOTFINAL_2.getSource();
+                var features = source.getFeatures();
+                var found = false;
+
+                features.forEach(function(feature) {
+                    var props = feature.getProperties();
+                    
+                    // Semak pelbagai kemungkinan nama field dalam GIS anda
+                    var lotNo = props['NO_LOT'] || props['no_lot'] || props['LOT'] || props['Lot'];
+
+                    if (lotNo && lotNo.toString().toLowerCase() === val.toLowerCase()) {
+                        found = true;
+                        
+                        // Kembalikan style asal lot sebelum ini jika ada
+                        if (selectedFeature) {
+                            selectedFeature.setStyle(null);
+                        }
+                        
+                        // Highlight lot baru
+                        feature.setStyle(highlightStyle);
+                        selectedFeature = feature;
+
+                        // Kemaskini maklumat di sidebar
+                        document.getElementById('selectedLot').innerText = lotNo;
+                        document.getElementById('ownerName').innerText = props['NAMA'] || props['PEMILIK'] || props['Owner'] || "Tiada Maklumat";
+                        
+                        var luas = props['LUAS'] || props['AREA'] || props['Luas'] || "0";
+                        document.getElementById('lotArea').innerText = luas + " m²";
+
+                        // Zoom ke lot tersebut
+                        var extent = feature.getGeometry().getExtent();
+                        map.getView().fit(extent, { 
+                            duration: 1000, 
+                            padding: [80, 80, 80, 80],
+                            maxZoom: 19 
+                        });
+                    }
+                });
+
+                if (!found) {
+                    alert("Maaf, No Lot '" + val + "' tidak dijumpai.");
+                }
+            }
+
+            // Benarkan tekan 'Enter' untuk carian
+            document.getElementById('lotInput').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    searchLot();
+                }
+            });
         </script>
     </body>
 </html>
