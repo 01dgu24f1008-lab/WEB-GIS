@@ -134,63 +134,107 @@
         <script src="./resources/qgis2web.js"></script>
 
         <script>
-            // 1. Tambah Google Satellite
-            var lyr_GoogleSatellite = new ol.layer.Tile({
-                title: 'Google Satellite',
-                type: 'base',
-                visible: true,
-                source: new ol.source.XYZ({
-                    attributions: '&copy; Google Maps',
-                    url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
-                })
+    // 1. Tambah Google Satellite
+    var lyr_GoogleSatellite = new ol.layer.Tile({
+        title: 'Google Satellite',
+        type: 'base',
+        visible: true,
+        source: new ol.source.XYZ({
+            attributions: '&copy; Google Maps',
+            url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
+        })
+    });
+    map.getLayers().insertAt(0, lyr_GoogleSatellite);
+
+    // 2. Definisi Gaya Highlight (Warna Kuning bila ditekan/dicari)
+    var highlightStyle = new ol.style.Style({
+        fill: new ol.style.Fill({
+            color: 'rgba(255, 255, 0, 0.6)' // Kuning lutsinar
+        }),
+        stroke: new ol.style.Stroke({
+            color: '#ffcc33', // Sempadan Kuning/Oren
+            width: 3
+        })
+    });
+
+    var selectedFeature = null;
+
+    // 3. Fungsi Kemaskini Sidebar & Zoom
+    function updateSidebarAndZoom(feature) {
+        // Reset gaya lot lama
+        if (selectedFeature) {
+            selectedFeature.setStyle(undefined);
+        }
+
+        if (feature) {
+            // Beri warna kuning pada lot
+            feature.setStyle(highlightStyle);
+            selectedFeature = feature;
+
+            // Kemaskini data Sidebar
+            var props = feature.getProperties();
+            document.getElementById('selectedLot').innerText = props.NO_LOT || props.no_lot || '-';
+            document.getElementById('ownerName').innerText = props.PEMILIK || props.nama || 'TIADA REKOD';
+            document.getElementById('lotArea').innerText = (props.LUAS || props.area || '0') + " m²";
+
+            // Zoom automatik ke lot
+            var extent = feature.getGeometry().getExtent();
+            map.getView().fit(extent, { 
+                duration: 1000, 
+                padding: [100, 100, 100, 100],
+                maxZoom: 20 
             });
-            map.getLayers().insertAt(0, lyr_GoogleSatellite);
+        }
+    }
 
-            // 2. Definisi Gaya Highlight (Warna Kuning bila ditekan)
-            var highlightStyle = new ol.style.Style({
-                fill: new ol.style.Fill({
-                    color: 'rgba(255, 255, 0, 0.6)' // Kuning lutsinar
-                }),
-                stroke: new ol.style.Stroke({
-                    color: '#ffcc33', // Sempadan Kuning/Oren
-                    width: 3
-                })
-            });
+    // 4. Fungsi Klik Peta
+    map.on('singleclick', function (evt) {
+        var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
+            return feature;
+        });
+        if (feature) {
+            updateSidebarAndZoom(feature);
+        }
+    });
 
-            var selectedFeature = null;
+    // 5. FUNGSI CARIAN LOT (YANG ANDA MINTA)
+    function searchLot() {
+        var val = document.getElementById('lotInput').value.trim();
+        
+        if (val === "") {
+            alert("Sila masukkan No Lot");
+            return;
+        }
 
-            // 3. Fungsi Klik Peta
-            map.on('singleclick', function (evt) {
-                // Reset gaya lot lama
-                if (selectedFeature) {
-                    selectedFeature.setStyle(undefined);
-                }
+        // Ambil sumber data dari layer lot (biasanya lyr_LOTFINAL_2 dalam qgis2web)
+        // Kita loop semua feature untuk cari No Lot yang sama
+        var source = lyr_LOTFINAL_2.getSource();
+        var features = source.getFeatures();
+        var found = false;
 
-                var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
-                    return feature;
-                });
-
-                if (feature) {
-                    // Beri warna kuning pada lot yang ditekan
-                    feature.setStyle(highlightStyle);
-                    selectedFeature = feature;
-
-                    // Kemaskini data Sidebar
-                    var props = feature.getProperties();
-                    document.getElementById('selectedLot').innerText = props.NO_LOT || props.no_lot || '-';
-                    document.getElementById('ownerName').innerText = props.PEMILIK || props.nama || 'ALI BIN ABU';
-                    document.getElementById('lotArea').innerText = (props.LUAS || props.area || '106.825') + " m²";
-
-                    // Zoom automatik ke lot yang ditekan
-                    var extent = feature.getGeometry().getExtent();
-                    map.getView().fit(extent, { duration: 500, padding: [100, 100, 100, 100] });
-                }
-            });
-
-            function searchLot() {
-                var val = document.getElementById('lotInput').value;
-                alert("Mencari lot: " + val);
+        features.forEach(function(feature) {
+            var props = feature.getProperties();
+            // Semak kedua-dua kemungkinan huruf besar/kecil
+            var lotNo = props.NO_LOT || props.no_lot;
+            
+            if (lotNo && lotNo.toString().toLowerCase() === val.toLowerCase()) {
+                updateSidebarAndZoom(feature);
+                found = true;
             }
+        });
+
+        if (!found) {
+            alert("Maaf, No Lot " + val + " tidak dijumpai.");
+        }
+    }
+
+    // Tambahan: Benarkan tekan 'Enter' untuk cari
+    document.getElementById('lotInput').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            searchLot();
+        }
+    });
+</script>
         </script>
     </body>
 </html>
