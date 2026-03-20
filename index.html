@@ -58,33 +58,56 @@
             var selectedFeature = null;
 
             function searchLot() {
-                var val = document.getElementById('lotInput').value.trim();
-                if (!val) return;
+    var val = document.getElementById('lotInput').value.trim();
+    if (!val) return;
 
-                var found = false;
-                // Pastikan 'lyr_LOTFINAL_2' adalah nama variable layer yang betul
-                var source = lyr_LOTFINAL_2.getSource(); 
-                
-                source.getFeatures().forEach(function(feature) {
-                    // Semak nama attribute field dalam data anda
-                    var lotNo = feature.get('NO_LOT') || feature.get('no_lot');
-                    
-                    if (lotNo && lotNo.toString() === val) {
-                        found = true;
-                        if (selectedFeature) selectedFeature.setStyle(null);
-                        
-                        feature.setStyle(highlightStyle);
-                        selectedFeature = feature;
-                        
-                        document.getElementById('selectedLot').innerText = lotNo;
-                        
-                        var extent = feature.getGeometry().getExtent();
-                        map.getView().fit(extent, { duration: 1000, padding: [50, 50, 50, 50] });
-                    }
-                });
+    // 1. Pastikan layer wujud
+    if (typeof lyr_LOTFINAL_2 === 'undefined') {
+        console.error("Layer lyr_LOTFINAL_2 tidak dijumpai!");
+        return;
+    }
 
-                if (!found) alert("Lot " + val + " tidak dijumpai.");
-            }
+    var source = lyr_LOTFINAL_2.getSource();
+    var features = source.getFeatures();
+    
+    // Debug: Tengok dalam Console (F12) berapa feature yang ada
+    console.log("Jumlah feature dikesan:", features.length);
+
+    var found = false;
+
+    features.forEach(function(feature) {
+        // Ambil semua properties untuk mudahkan carian
+        var props = feature.getProperties();
+        
+        // Cuba cari dalam beberapa variasi nama field yang biasa
+        var lotNo = props['NO_LOT'] || props['no_lot'] || props['Lot'] || props['id'];
+
+        if (lotNo && lotNo.toString().toLowerCase() === val.toLowerCase()) {
+            found = true;
+            
+            // Reset style lama
+            if (selectedFeature) selectedFeature.setStyle(null);
+            
+            // Highlight
+            feature.setStyle(highlightStyle);
+            selectedFeature = feature;
+            
+            document.getElementById('selectedLot').innerText = lotNo;
+            
+            // Zoom ke lot
+            var extent = feature.getGeometry().getExtent();
+            map.getView().fit(extent, { 
+                duration: 1000, 
+                padding: [100, 100, 100, 100],
+                maxZoom: 18 // Elakkan zoom terlalu dekat sampai pecah
+            });
+        }
+    });
+
+    if (!found) {
+        alert("Lot " + val + " tidak dijumpai. Sila pastikan No Lot betul.");
+    }
+}
         </script>
     </body>
 </html>
