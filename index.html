@@ -87,7 +87,6 @@
         </nav>
 
         <div class="flex flex-1 overflow-hidden relative">
-            
             <div id="map" class="flex-1 z-0 relative">
                 <div id="popup" class="ol-popup">
                     <a href="#" id="popup-closer" class="ol-popup-closer"></a>
@@ -167,7 +166,6 @@
 
         <script>
     window.onload = function() {
-        // Setup Popup Overlay
         var container = document.getElementById('popup');
         var content = document.getElementById('popup-content');
         var closer = document.getElementById('popup-closer');
@@ -185,7 +183,6 @@
             return false;
         };
 
-        // 1. Tambah Google Satellite
         if (typeof map !== 'undefined') {
             var lyr_GoogleSatellite = new ol.layer.Tile({
                 title: 'Google Satellite',
@@ -205,7 +202,7 @@
 
         var selectedFeature = null;
 
-        // 2. Fungsi Klik Lot
+        // Fungsi Klik
         if (typeof map !== 'undefined') {
             map.on('singleclick', function(evt) {
                 var feature = map.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
@@ -218,9 +215,10 @@
                     selectedFeature = feature;
 
                     var props = feature.getProperties();
-                    var noLot = props['NO_LOT'] || '-';
+                    // Pencarian dinamik untuk No Lot jika NO_LOT tiada
+                    var noLot = props['NO_LOT'] || props['lot_no'] || props['fid'] || '-';
                     var owner = props['tsp — pe'] || 'TIADA REKOD';
-                    var area = (props['AREA'] || '0') + " m²";
+                    var area = (props['AREA'] || props['area'] || '0') + " m²";
 
                     document.getElementById('selectedLot').innerText = noLot;
                     document.getElementById('ownerName').innerText = owner;
@@ -235,20 +233,10 @@
                         </div>
                     `;
                     overlay.setPosition(evt.coordinate);
-                } else {
-                    if (selectedFeature) { 
-                        selectedFeature.setStyle(undefined); 
-                        selectedFeature = null;
-                        overlay.setPosition(undefined);
-                        document.getElementById('selectedLot').innerText = '-';
-                        document.getElementById('ownerName').innerText = '-';
-                        document.getElementById('lotArea').innerText = '0 m²';
-                    }
                 }
             });
         }
 
-        // 3. Fungsi Toggle Layer
         window.toggleLayer = function(type) {
             if (type === 'lot') {
                 var isVisible = document.getElementById('toggleLot').checked;
@@ -260,9 +248,9 @@
             }
         };
 
-        // 4. Fungsi Carian (DIPERBAIKI)
+        // FUNGSI CARI LOT (DIPERBAIKI)
         window.searchLot = function() {
-            var inputVal = document.getElementById('lotInput').value.trim();
+            var inputVal = document.getElementById('lotInput').value.trim().toLowerCase();
             if (!inputVal) { alert("Sila masukkan No Lot."); return; }
             if (typeof lyr_LOTFINAL_2 === 'undefined') return;
 
@@ -273,40 +261,43 @@
             for (var i = 0; i < features.length; i++) {
                 var props = features[i].getProperties();
                 
-                // Normalisasi data: tukar ke String, buang space, dan kecilkan huruf untuk perbandingan tepat
-                var valFromData = props['NO_LOT'] ? props['NO_LOT'].toString().trim().toLowerCase() : "";
-                var valFromInput = inputVal.toLowerCase().trim();
+                // Cuba cari dalam beberapa kemungkinan nama kolum (NO_LOT, fid, atau apa-apa yang ada 'LOT')
+                var lotValue = "";
+                for (var key in props) {
+                    if (key.toUpperCase().includes("LOT") || key.toLowerCase() === "fid") {
+                        if (props[key] && props[key].toString().toLowerCase() === inputVal) {
+                            lotValue = props[key];
+                            found = true;
+                            break;
+                        }
+                    }
+                }
 
-                if (valFromData === valFromInput) {
+                if (found) {
                     if (selectedFeature) { selectedFeature.setStyle(undefined); }
                     features[i].setStyle(highlightStyle);
                     selectedFeature = features[i];
 
-                    // Kemaskini Sidebar
-                    document.getElementById('selectedLot').innerText = props['NO_LOT'] || '-';
+                    document.getElementById('selectedLot').innerText = lotValue;
                     document.getElementById('ownerName').innerText = props['tsp — pe'] || 'TIADA REKOD';
-                    document.getElementById('lotArea').innerText = (props['AREA'] || '0') + " m²";
+                    document.getElementById('lotArea').innerText = (props['AREA'] || props['area'] || '0') + " m²";
 
-                    // Fokus Peta
                     var extent = features[i].getGeometry().getExtent();
                     var center = ol.extent.getCenter(extent);
                     map.getView().fit(extent, { duration: 800, padding: [100, 100, 100, 100], maxZoom: 20 });
                     
-                    // Tunjuk Popup
                     content.innerHTML = `
                         <div style="font-family: sans-serif;">
-                            <h3 style="margin:0; color:#2d5a27; font-weight:bold;">Info Lot: ${props['NO_LOT']}</h3>
+                            <h3 style="margin:0; color:#2d5a27; font-weight:bold;">Info Lot: ${lotValue}</h3>
                             <hr style="margin: 8px 0;">
-                            <p style="margin:0; font-size:12px;"><b>Pemilik:</b> ${props['tsp — pe']}</p>
+                            <p style="margin:0; font-size:12px;"><b>Pemilik:</b> ${props['tsp — pe'] || 'TIADA REKOD'}</p>
                         </div>
                     `;
                     overlay.setPosition(center);
-
-                    found = true;
                     break;
                 }
             }
-            if (!found) alert("No Lot '" + inputVal + "' tidak dijumpai. Sila pastikan No Lot betul.");
+            if (!found) alert("No Lot '" + inputVal + "' tidak dijumpai dalam sistem.");
         };
 
         document.getElementById('lotInput').addEventListener('keypress', function (e) {
