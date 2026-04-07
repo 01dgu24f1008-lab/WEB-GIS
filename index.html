@@ -41,6 +41,12 @@
                 left: -50px;
                 min-width: 180px;
             }
+
+            /* Custom Checkbox Style */
+            .toggle-checkbox:checked {
+                background-color: #4ade80;
+                border-color: #4ade80;
+            }
         </style>
         <title>Simply Stay - Land Explorer</title>
     </head>
@@ -75,6 +81,22 @@
                 <div class="flex items-center gap-2 mb-6">
                     <span class="text-lg">🌍</span>
                     <h1 class="text-md font-bold italic">Land Explorer</h1>
+                </div>
+
+                <div class="mb-8 p-4 bg-card rounded-md border border-gray-700 space-y-3">
+                    <p class="text-[10px] text-gray-400 font-bold uppercase mb-2">Kawalan Layer</p>
+                    
+                    <div class="flex items-center justify-between">
+                        <label for="toggleLot" class="text-sm cursor-pointer">Paparan Lot</label>
+                        <input type="checkbox" id="toggleLot" checked onchange="toggleLayer('lot')" 
+                               class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-green-500 focus:ring-green-500">
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <label for="toggleSempadan" class="text-sm cursor-pointer">Tanda Sempadan</label>
+                        <input type="checkbox" id="toggleSempadan" checked onchange="toggleLayer('sempadan')" 
+                               class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-green-500 focus:ring-green-500">
+                    </div>
                 </div>
 
                 <div class="space-y-3 mb-8">
@@ -134,10 +156,9 @@
         <script src="./resources/qgis2web.js"></script>
 
         <script>
-    // Guna window.onload untuk pastikan 'map' dan 'lyr_LOTFINAL_2' sudah wujud
     window.onload = function() {
         
-        // 1. Tambah Google Satellite (Optional - jika belum ada)
+        // 1. Tambah Google Satellite
         if (typeof map !== 'undefined') {
             var lyr_GoogleSatellite = new ol.layer.Tile({
                 title: 'Google Satellite',
@@ -158,7 +179,26 @@
 
         var selectedFeature = null;
 
-        // 3. Fungsi Global untuk Carian (Supaya butang boleh panggil)
+        // 3. Fungsi Toggle Layer (Fungsi Baru)
+        window.toggleLayer = function(type) {
+            if (type === 'lot') {
+                var isVisible = document.getElementById('toggleLot').checked;
+                if (typeof lyr_LOTFINAL_2 !== 'undefined') {
+                    lyr_LOTFINAL_2.setVisible(isVisible);
+                }
+            } else if (type === 'sempadan') {
+                var isVisible = document.getElementById('toggleSempadan').checked;
+                // Menutup kedua-dua layer sempadan (point/line jika ada)
+                if (typeof lyr_batusempadan_0 !== 'undefined') {
+                    lyr_batusempadan_0.setVisible(isVisible);
+                }
+                if (typeof lyr_tandasempadan13clean_1 !== 'undefined') {
+                    lyr_tandasempadan13clean_1.setVisible(isVisible);
+                }
+            }
+        };
+
+        // 4. Fungsi Global untuk Carian
         window.searchLot = function() {
             var inputVal = document.getElementById('lotInput').value.trim();
             
@@ -167,7 +207,6 @@
                 return;
             }
 
-            // Pastikan layer wujud
             if (typeof lyr_LOTFINAL_2 === 'undefined') {
                 console.error("Layer lyr_LOTFINAL_2 tidak dijumpai!");
                 return;
@@ -180,22 +219,17 @@
             for (var i = 0; i < features.length; i++) {
                 var props = features[i].getProperties();
                 
-                // Semak field 'NO_LOT' (ikut layers.js anda)
                 if (props['NO_LOT'] && props['NO_LOT'].toString().toLowerCase() === inputVal.toLowerCase()) {
                     
-                    // Reset highlight lama
                     if (selectedFeature) { selectedFeature.setStyle(undefined); }
 
-                    // Highlight baru
                     features[i].setStyle(highlightStyle);
                     selectedFeature = features[i];
 
-                    // Update UI Sidebar
                     document.getElementById('selectedLot').innerText = props['NO_LOT'] || '-';
                     document.getElementById('ownerName').innerText = props['tsp — pe'] || 'TIADA REKOD';
                     document.getElementById('lotArea').innerText = (props['AREA'] || '0') + " m²";
 
-                    // Zoom
                     var extent = features[i].getGeometry().getExtent();
                     map.getView().fit(extent, { 
                         duration: 800, 
@@ -213,12 +247,11 @@
             }
         };
 
-        // 4. Benarkan tekan Enter
+        // 5. Benarkan tekan Enter
         document.getElementById('lotInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') { window.searchLot(); }
         });
     };
 </script>
-        </script>
     </body>
 </html>
