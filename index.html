@@ -171,7 +171,7 @@
             map.getLayers().insertAt(0, lyr_GoogleSatellite);
         }
 
-        // 2. Gaya Highlight
+        // 2. Gaya Highlight (Warna Kuning)
         var highlightStyle = new ol.style.Style({
             fill: new ol.style.Fill({ color: 'rgba(255, 255, 0, 0.6)' }),
             stroke: new ol.style.Stroke({ color: '#ffcc33', width: 3 })
@@ -179,7 +179,43 @@
 
         var selectedFeature = null;
 
-        // 3. Fungsi Toggle Layer (Fungsi Baru)
+        // --- FUNGSI BARU: Klik Lot untuk Highlight ---
+        if (typeof map !== 'undefined') {
+            map.on('singleclick', function(evt) {
+                var feature = map.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
+                    // Hanya tangkap feature dari layer lot
+                    if (layer === lyr_LOTFINAL_2) {
+                        return feature;
+                    }
+                });
+
+                if (feature) {
+                    // Reset highlight lama
+                    if (selectedFeature) { selectedFeature.setStyle(undefined); }
+                    
+                    // Set highlight baru (Kuning)
+                    feature.setStyle(highlightStyle);
+                    selectedFeature = feature;
+
+                    // Kemaskini Sidebar
+                    var props = feature.getProperties();
+                    document.getElementById('selectedLot').innerText = props['NO_LOT'] || '-';
+                    document.getElementById('ownerName').innerText = props['tsp — pe'] || 'TIADA REKOD';
+                    document.getElementById('lotArea').innerText = (props['AREA'] || '0') + " m²";
+                } else {
+                    // Jika klik kawasan kosong, buang highlight
+                    if (selectedFeature) { 
+                        selectedFeature.setStyle(undefined); 
+                        selectedFeature = null;
+                        document.getElementById('selectedLot').innerText = '-';
+                        document.getElementById('ownerName').innerText = '-';
+                        document.getElementById('lotArea').innerText = '0 m²';
+                    }
+                }
+            });
+        }
+
+        // 3. Fungsi Toggle Layer
         window.toggleLayer = function(type) {
             if (type === 'lot') {
                 var isVisible = document.getElementById('toggleLot').checked;
@@ -188,7 +224,6 @@
                 }
             } else if (type === 'sempadan') {
                 var isVisible = document.getElementById('toggleSempadan').checked;
-                // Menutup kedua-dua layer sempadan (point/line jika ada)
                 if (typeof lyr_batusempadan_0 !== 'undefined') {
                     lyr_batusempadan_0.setVisible(isVisible);
                 }
@@ -198,7 +233,7 @@
             }
         };
 
-        // 4. Fungsi Global untuk Carian
+        // 4. Fungsi Global untuk Carian (Kekal highlight kuning)
         window.searchLot = function() {
             var inputVal = document.getElementById('lotInput').value.trim();
             
