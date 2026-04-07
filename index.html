@@ -19,7 +19,6 @@
             html, body { height: 100%; margin: 0; padding: 0; background-color: #ffffff; overflow: hidden; }
             #map { width: 100%; height: 100%; }
             
-            /* Warna Tema Rujukan */
             .bg-navbar { background-color: #2d5a27; } 
             .bg-sidebar { background-color: #1e212d; }
             .bg-card { background-color: #111319; }
@@ -33,20 +32,47 @@
 
             /* Style untuk popup OpenLayers */
             .ol-popup {
+                position: absolute;
                 background-color: white;
                 padding: 15px;
                 border-radius: 10px;
                 border: 1px solid #cccccc;
                 bottom: 12px;
                 left: -50px;
-                min-width: 180px;
+                min-width: 200px;
+                color: #333;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.2);
             }
-
-            /* Custom Checkbox Style */
-            .toggle-checkbox:checked {
-                background-color: #4ade80;
-                border-color: #4ade80;
+            .ol-popup:after, .ol-popup:before {
+                top: 100%;
+                border: solid transparent;
+                content: " ";
+                height: 0;
+                width: 0;
+                position: absolute;
+                pointer-events: none;
             }
+            .ol-popup:after {
+                border-top-color: white;
+                border-width: 10px;
+                left: 48px;
+                margin-left: -10px;
+            }
+            .ol-popup:before {
+                border-top-color: #cccccc;
+                border-width: 11px;
+                left: 48px;
+                margin-left: -11px;
+            }
+            .ol-popup-closer {
+                text-decoration: none;
+                position: absolute;
+                top: 2px;
+                right: 8px;
+                color: #666;
+                font-weight: bold;
+            }
+            .ol-popup-closer:after { content: "✖"; }
         </style>
         <title>Simply Stay - Land Explorer</title>
     </head>
@@ -85,32 +111,20 @@
 
                 <div class="mb-8 p-4 bg-card rounded-md border border-gray-700 space-y-3">
                     <p class="text-[10px] text-gray-400 font-bold uppercase mb-2">Kawalan Layer</p>
-                    
                     <div class="flex items-center justify-between">
                         <label for="toggleLot" class="text-sm cursor-pointer">Paparan Lot</label>
-                        <input type="checkbox" id="toggleLot" checked onchange="toggleLayer('lot')" 
-                               class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-green-500 focus:ring-green-500">
+                        <input type="checkbox" id="toggleLot" checked onchange="toggleLayer('lot')" class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-green-500">
                     </div>
-
                     <div class="flex items-center justify-between">
                         <label for="toggleSempadan" class="text-sm cursor-pointer">Tanda Sempadan</label>
-                        <input type="checkbox" id="toggleSempadan" checked onchange="toggleLayer('sempadan')" 
-                               class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-green-500 focus:ring-green-500">
+                        <input type="checkbox" id="toggleSempadan" checked onchange="toggleLayer('sempadan')" class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-green-500">
                     </div>
                 </div>
 
                 <div class="space-y-3 mb-8">
-                    <input type="text" id="lotInput" placeholder="Masukkan No Lot" 
-                        class="w-full bg-card border border-gray-700 rounded-md p-3 text-sm text-white focus:ring-1 focus:ring-green-500 outline-none">
-                    
-                    <button onclick="searchLot()" class="w-full bg-green-700 hover:bg-green-600 py-2.5 rounded-md text-sm font-bold transition">
-                        Cari Lot
-                    </button>
-                    
-                    <button onclick="location.reload()" class="w-full bg-red-600 hover:bg-red-500 py-2.5 rounded-md text-sm font-bold transition">
-                        Reset Peta
-                    </button>
-                    
+                    <input type="text" id="lotInput" placeholder="Masukkan No Lot" class="w-full bg-card border border-gray-700 rounded-md p-3 text-sm text-white focus:ring-1 focus:ring-green-500 outline-none">
+                    <button onclick="searchLot()" class="w-full bg-green-700 hover:bg-green-600 py-2.5 rounded-md text-sm font-bold transition">Cari Lot</button>
+                    <button onclick="location.reload()" class="w-full bg-red-600 hover:bg-red-500 py-2.5 rounded-md text-sm font-bold transition">Reset Peta</button>
                     <button class="w-full bg-sky-600 hover:bg-sky-500 py-2.5 rounded-md text-sm font-bold flex items-center justify-center gap-2 text-white">
                         <i class="fas fa-file-pdf"></i> Export Detail + Map (PDF)
                     </button>
@@ -121,17 +135,14 @@
                         <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Total Lot</p>
                         <p class="text-accent text-lg font-bold" id="totalLot">67</p>
                     </div>
-
                     <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
                         <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">No Lot Dipilih</p>
                         <p class="text-accent text-lg font-bold" id="selectedLot">-</p>
                     </div>
-
                     <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
                         <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Nama Pemilik</p>
                         <p class="text-accent text-sm font-bold uppercase" id="ownerName">-</p>
                     </div>
-
                     <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
                         <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Luas Lot</p>
                         <p class="text-accent text-lg font-bold" id="lotArea">0 m²</p>
@@ -158,6 +169,24 @@
         <script>
     window.onload = function() {
         
+        // Setup Popup Overlay
+        var container = document.getElementById('popup');
+        var content = document.getElementById('popup-content');
+        var closer = document.getElementById('popup-closer');
+
+        var overlay = new ol.Overlay({
+            element: container,
+            autoPan: true,
+            autoPanAnimation: { duration: 250 }
+        });
+        map.addOverlay(overlay);
+
+        closer.onclick = function() {
+            overlay.setPosition(undefined);
+            closer.blur();
+            return false;
+        };
+
         // 1. Tambah Google Satellite
         if (typeof map !== 'undefined') {
             var lyr_GoogleSatellite = new ol.layer.Tile({
@@ -171,7 +200,6 @@
             map.getLayers().insertAt(0, lyr_GoogleSatellite);
         }
 
-        // 2. Gaya Highlight (Warna Kuning)
         var highlightStyle = new ol.style.Style({
             fill: new ol.style.Fill({ color: 'rgba(255, 255, 0, 0.6)' }),
             stroke: new ol.style.Stroke({ color: '#ffcc33', width: 3 })
@@ -179,34 +207,43 @@
 
         var selectedFeature = null;
 
-        // --- FUNGSI BARU: Klik Lot untuk Highlight ---
+        // 2. Fungsi Klik Lot (Highlight + Popup + Sidebar)
         if (typeof map !== 'undefined') {
             map.on('singleclick', function(evt) {
                 var feature = map.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
-                    // Hanya tangkap feature dari layer lot
-                    if (layer === lyr_LOTFINAL_2) {
-                        return feature;
-                    }
+                    if (layer === lyr_LOTFINAL_2) return feature;
                 });
 
                 if (feature) {
-                    // Reset highlight lama
                     if (selectedFeature) { selectedFeature.setStyle(undefined); }
-                    
-                    // Set highlight baru (Kuning)
                     feature.setStyle(highlightStyle);
                     selectedFeature = feature;
 
-                    // Kemaskini Sidebar
                     var props = feature.getProperties();
-                    document.getElementById('selectedLot').innerText = props['NO_LOT'] || '-';
-                    document.getElementById('ownerName').innerText = props['tsp — pe'] || 'TIADA REKOD';
-                    document.getElementById('lotArea').innerText = (props['AREA'] || '0') + " m²";
+                    var noLot = props['NO_LOT'] || '-';
+                    var owner = props['tsp — pe'] || 'TIADA REKOD';
+                    var area = (props['AREA'] || '0') + " m²";
+
+                    // Update Sidebar
+                    document.getElementById('selectedLot').innerText = noLot;
+                    document.getElementById('ownerName').innerText = owner;
+                    document.getElementById('lotArea').innerText = area;
+
+                    // Update Popup
+                    content.innerHTML = `
+                        <div style="font-family: sans-serif;">
+                            <h3 style="margin:0; color:#2d5a27; font-weight:bold;">Info Lot: ${noLot}</h3>
+                            <hr style="margin: 8px 0;">
+                            <p style="margin:0; font-size:12px;"><b>Pemilik:</b> ${owner}</p>
+                            <p style="margin:0; font-size:12px;"><b>Luas:</b> ${area}</p>
+                        </div>
+                    `;
+                    overlay.setPosition(evt.coordinate);
                 } else {
-                    // Jika klik kawasan kosong, buang highlight
                     if (selectedFeature) { 
                         selectedFeature.setStyle(undefined); 
                         selectedFeature = null;
+                        overlay.setPosition(undefined);
                         document.getElementById('selectedLot').innerText = '-';
                         document.getElementById('ownerName').innerText = '-';
                         document.getElementById('lotArea').innerText = '0 m²';
@@ -219,33 +256,19 @@
         window.toggleLayer = function(type) {
             if (type === 'lot') {
                 var isVisible = document.getElementById('toggleLot').checked;
-                if (typeof lyr_LOTFINAL_2 !== 'undefined') {
-                    lyr_LOTFINAL_2.setVisible(isVisible);
-                }
+                if (typeof lyr_LOTFINAL_2 !== 'undefined') lyr_LOTFINAL_2.setVisible(isVisible);
             } else if (type === 'sempadan') {
                 var isVisible = document.getElementById('toggleSempadan').checked;
-                if (typeof lyr_batusempadan_0 !== 'undefined') {
-                    lyr_batusempadan_0.setVisible(isVisible);
-                }
-                if (typeof lyr_tandasempadan13clean_1 !== 'undefined') {
-                    lyr_tandasempadan13clean_1.setVisible(isVisible);
-                }
+                if (typeof lyr_batusempadan_0 !== 'undefined') lyr_batusempadan_0.setVisible(isVisible);
+                if (typeof lyr_tandasempadan13clean_1 !== 'undefined') lyr_tandasempadan13clean_1.setVisible(isVisible);
             }
         };
 
-        // 4. Fungsi Global untuk Carian (Kekal highlight kuning)
+        // 4. Fungsi Carian
         window.searchLot = function() {
             var inputVal = document.getElementById('lotInput').value.trim();
-            
-            if (!inputVal) {
-                alert("Sila masukkan No Lot.");
-                return;
-            }
-
-            if (typeof lyr_LOTFINAL_2 === 'undefined') {
-                console.error("Layer lyr_LOTFINAL_2 tidak dijumpai!");
-                return;
-            }
+            if (!inputVal) { alert("Sila masukkan No Lot."); return; }
+            if (typeof lyr_LOTFINAL_2 === 'undefined') return;
 
             var source = lyr_LOTFINAL_2.getSource();
             var features = source.getFeatures();
@@ -253,11 +276,8 @@
 
             for (var i = 0; i < features.length; i++) {
                 var props = features[i].getProperties();
-                
                 if (props['NO_LOT'] && props['NO_LOT'].toString().toLowerCase() === inputVal.toLowerCase()) {
-                    
                     if (selectedFeature) { selectedFeature.setStyle(undefined); }
-
                     features[i].setStyle(highlightStyle);
                     selectedFeature = features[i];
 
@@ -266,23 +286,20 @@
                     document.getElementById('lotArea').innerText = (props['AREA'] || '0') + " m²";
 
                     var extent = features[i].getGeometry().getExtent();
-                    map.getView().fit(extent, { 
-                        duration: 800, 
-                        padding: [100, 100, 100, 100],
-                        maxZoom: 20 
-                    });
+                    var center = ol.extent.getCenter(extent);
+                    map.getView().fit(extent, { duration: 800, padding: [100, 100, 100, 100], maxZoom: 20 });
+                    
+                    // Trigger popup pada pusat lot
+                    content.innerHTML = `<div style="font-family: sans-serif;"><h3 style="margin:0; color:#2d5a27;">Info Lot: ${props['NO_LOT']}</h3><p style="margin:0; font-size:12px;"><b>Pemilik:</b> ${props['tsp — pe']}</p></div>`;
+                    overlay.setPosition(center);
 
                     found = true;
                     break;
                 }
             }
-
-            if (!found) {
-                alert("No Lot " + inputVal + " tidak dijumpai.");
-            }
+            if (!found) alert("No Lot " + inputVal + " tidak dijumpai.");
         };
 
-        // 5. Benarkan tekan Enter
         document.getElementById('lotInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') { window.searchLot(); }
         });
