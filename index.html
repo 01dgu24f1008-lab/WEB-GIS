@@ -8,6 +8,8 @@
         <meta name="apple-mobile-web-app-capable" content="yes">
         
         <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         
         <link rel="stylesheet" href="./resources/ol.css">
         <link rel="stylesheet" href="resources/fontawesome-all.min.css">
@@ -123,12 +125,12 @@
                     <input type="text" id="lotInput" placeholder="Masukkan No Lot" class="w-full bg-card border border-gray-700 rounded-md p-3 text-sm text-white focus:ring-1 focus:ring-green-500 outline-none">
                     <button onclick="searchLot()" class="w-full bg-green-700 hover:bg-green-600 py-2.5 rounded-md text-sm font-bold transition">Cari Lot</button>
                     <button onclick="location.reload()" class="w-full bg-red-600 hover:bg-red-500 py-2.5 rounded-md text-sm font-bold transition">Reset Peta</button>
-                    <button class="w-full bg-sky-600 hover:bg-sky-500 py-2.5 rounded-md text-sm font-bold flex items-center justify-center gap-2 text-white">
+                    <button onclick="exportToPDF()" class="w-full bg-sky-600 hover:bg-sky-500 py-2.5 rounded-md text-sm font-bold flex items-center justify-center gap-2 text-white">
                         <i class="fas fa-file-pdf"></i> Export Detail + Map (PDF)
                     </button>
                 </div>
 
-                <div class="space-y-4">
+                <div id="lotInfoCard" class="space-y-4">
                     <div class="bg-card border-l-4 border-green-500 p-4 rounded-r-md">
                         <p class="text-[9px] text-gray-400 font-bold uppercase mb-1">Total Lot</p>
                         <p class="text-accent text-lg font-bold" id="totalLot">67</p>
@@ -202,7 +204,6 @@
 
         var selectedFeature = null;
 
-        // Fungsi Klik
         if (typeof map !== 'undefined') {
             map.on('singleclick', function(evt) {
                 var feature = map.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
@@ -215,7 +216,6 @@
                     selectedFeature = feature;
 
                     var props = feature.getProperties();
-                    // Pencarian dinamik untuk No Lot jika NO_LOT tiada
                     var noLot = props['NO_LOT'] || props['lot_no'] || props['fid'] || '-';
                     var owner = props['tsp — pe'] || 'TIADA REKOD';
                     var area = (props['AREA'] || props['area'] || '0') + " m²";
@@ -248,7 +248,6 @@
             }
         };
 
-        // FUNGSI CARI LOT (DIPERBAIKI)
         window.searchLot = function() {
             var inputVal = document.getElementById('lotInput').value.trim().toLowerCase();
             if (!inputVal) { alert("Sila masukkan No Lot."); return; }
@@ -260,8 +259,6 @@
 
             for (var i = 0; i < features.length; i++) {
                 var props = features[i].getProperties();
-                
-                // Cuba cari dalam beberapa kemungkinan nama kolum (NO_LOT, fid, atau apa-apa yang ada 'LOT')
                 var lotValue = "";
                 for (var key in props) {
                     if (key.toUpperCase().includes("LOT") || key.toLowerCase() === "fid") {
@@ -297,7 +294,59 @@
                     break;
                 }
             }
-            if (!found) alert("No Lot '" + inputVal + "' tidak dijumpai dalam sistem.");
+            if (!found) alert("No Lot '" + inputVal + "' tidak dijumpai.");
+        };
+
+        // --- FUNGSI EXPORT PDF BARU ---
+        window.exportToPDF = async function() {
+            const { jsPDF } = window.jspdf;
+            const lotNo = document.getElementById('selectedLot').innerText;
+            
+            if (lotNo === "-") {
+                alert("Sila pilih atau cari No Lot terlebih dahulu sebelum export.");
+                return;
+            }
+
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+
+            // 1. Tajuk Laporan
+            doc.setFillColor(45, 90, 39); // Warna Hijau Navbar
+            doc.rect(0, 0, pageWidth, 20, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            doc.text("LAPORAN MAKLUMAT LOT TANAH", pageWidth / 2, 13, { align: "center" });
+
+            // 2. Maklumat Lot (Dari Sidebar)
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.text("BUTIRAN PEMILIKAN:", 15, 35);
+            
+            doc.setFont("helvetica", "normal");
+            doc.text(`No. Lot: ${lotNo}`, 15, 45);
+            doc.text(`Pemilik: ${document.getElementById('ownerName').innerText}`, 15, 52);
+            doc.text(`Keluasan: ${document.getElementById('lotArea').innerText}`, 15, 59);
+            doc.text(`Tarikh Cetakan: ${new Date().toLocaleString()}`, 15, 66);
+
+            // 3. Tangkap Gambar Peta
+            const mapCanvas = document.querySelector('.ol-viewport canvas');
+            if (mapCanvas) {
+                doc.setFont("helvetica", "bold");
+                doc.text("PETA LOKASI:", 15, 80);
+                
+                // Convert canvas peta ke imej
+                const mapImgData = mapCanvas.toDataURL('image/png');
+                // Masukkan imej peta ke PDF (x, y, width, height)
+                doc.addImage(mapImgData, 'PNG', 15, 85, pageWidth - 30, 100);
+            }
+
+            doc.setFontSize(10);
+            doc.setTextColor(150, 150, 150);
+            doc.text("Dihasilkan secara automatik oleh Simply Stay - Land Explorer", pageWidth / 2, 280, { align: "center" });
+
+            // Simpan Fail
+            doc.save(`Laporan_Lot_${lotNo}.pdf`);
         };
 
         document.getElementById('lotInput').addEventListener('keypress', function (e) {
