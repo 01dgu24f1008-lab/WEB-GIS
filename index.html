@@ -69,7 +69,7 @@
                 <div class="space-y-3 mb-8">
                     <input type="text" id="lotInput" placeholder="Masukkan No Lot" class="w-full bg-card border border-gray-700 rounded-md p-3 text-sm text-white outline-none focus:ring-1 focus:ring-green-500">
                     <button onclick="searchLot()" class="w-full bg-green-700 hover:bg-green-600 py-2.5 rounded-md text-sm font-bold transition">Cari Lot</button>
-                    <button onclick="exportToPDF()" class="w-full bg-sky-600 hover:bg-sky-500 py-2.5 rounded-md text-sm font-bold flex items-center justify-center gap-2">
+                    <button onclick="exportToPDF(event)" class="w-full bg-sky-600 hover:bg-sky-500 py-2.5 rounded-md text-sm font-bold flex items-center justify-center gap-2">
                         <i class="fas fa-file-pdf"></i> Export Detail + Map (PDF)
                     </button>
                     <button onclick="location.reload()" class="w-full bg-red-600 py-2.5 rounded-md text-sm font-bold">Reset Peta</button>
@@ -109,15 +109,21 @@
     window.onload = function() {
         var container = document.getElementById('popup');
         var content = document.getElementById('popup-content');
+        var closer = document.getElementById('popup-closer');
         var overlay = new ol.Overlay({ element: container, autoPan: true });
         map.addOverlay(overlay);
 
-        // Tambah Google Satellite dengan crossOrigin supaya boleh export PDF
+        closer.onclick = function() {
+            overlay.setPosition(undefined);
+            closer.blur();
+            return false;
+        };
+
         if (typeof map !== 'undefined') {
             var lyr_GoogleSatellite = new ol.layer.Tile({
                 source: new ol.source.XYZ({
                     url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-                    crossOrigin: 'anonymous' // WAJIB UNTUK PDF
+                    crossOrigin: 'anonymous'
                 })
             });
             map.getLayers().insertAt(0, lyr_GoogleSatellite);
@@ -130,22 +136,49 @@
 
         var selectedFeature = null;
 
-        // Fungsi Klik Peta
+        // FUNGSI KLIK PETA YANG DIKEMASKINI
         map.on('singleclick', function(evt) {
             var feature = map.forEachFeatureAtPixel(evt.pixel, function(f, l) {
-                if (l === lyr_LOTFINAL_2) return f;
+                return {feature: f, layer: l};
             });
 
             if (feature) {
-                if (selectedFeature) selectedFeature.setStyle(undefined);
-                feature.setStyle(highlightStyle);
-                selectedFeature = feature;
+                var f = feature.feature;
+                var l = feature.layer;
+                var props = f.getProperties();
 
-                var p = feature.getProperties();
-                updateSidebar(p);
-                
-                content.innerHTML = `<div class="text-xs"><b>Lot:</b> ${p['NO_LOT'] || '-'}<br><b>Pemilik:</b> ${p['tsp — pe'] || '-'}</div>`;
-                overlay.setPosition(evt.coordinate);
+                // 1. Jika Klik pada Layer LOT
+                if (l === lyr_LOTFINAL_2) {
+                    if (selectedFeature) selectedFeature.setStyle(undefined);
+                    f.setStyle(highlightStyle);
+                    selectedFeature = f;
+
+                    updateSidebar(props);
+                    
+                    content.innerHTML = `
+                        <div class="text-xs">
+                            <b class="text-green-700">MAKLUMAT LOT</b><hr class="my-1">
+                            <b>Lot:</b> ${props['NO_LOT'] || '-'}<br>
+                            <b>Pemilik:</b> ${props['tsp — pe'] || '-'}
+                        </div>`;
+                    overlay.setPosition(evt.coordinate);
+                } 
+                // 2. Jika Klik pada Layer Batu Sempadan atau Tanda Sempadan
+                else if (l === lyr_batusempadan_0 || l === lyr_tandasempadan13clean_1) {
+                    var coord = evt.coordinate;
+                    // Tukar koordinat kepada format Latitude, Longitude (EPSG:4326)
+                    var lonLat = ol.proj.toLonLat(coord);
+                    
+                    content.innerHTML = `
+                        <div class="text-xs">
+                            <b class="text-blue-700">KOORDINAT SEMPADAN</b><hr class="my-1">
+                            <b>Lat:</b> ${lonLat[1].toFixed(7)}<br>
+                            <b>Lon:</b> ${lonLat[0].toFixed(7)}
+                        </div>`;
+                    overlay.setPosition(evt.coordinate);
+                }
+            } else {
+                overlay.setPosition(undefined);
             }
         });
 
@@ -183,13 +216,11 @@
             if (!found) alert("No Lot tidak dijumpai.");
         };
 
-        // FUNGSI EXPORT PDF YANG TELAH DIPERBAIKI
-        window.exportToPDF = function() {
+        window.exportToPDF = function(event) {
             const lotNo = document.getElementById('selectedLot').innerText;
             if (lotNo === "-") return alert("Pilih lot dahulu.");
 
-            // Beritahu pengguna sistem sedang memproses
-            const btn = event.target;
+            const btn = event.currentTarget;
             const originalText = btn.innerHTML;
             btn.innerHTML = "Sila Tunggu...";
             btn.disabled = true;
@@ -201,7 +232,6 @@
                 mapCanvas.height = size[1];
                 const mapContext = mapCanvas.getContext('2d');
 
-                // Gabungkan semua layer canvas peta
                 Array.prototype.forEach.call(
                     document.querySelectorAll('.ol-layer canvas'),
                     function (canvas) {
@@ -219,13 +249,11 @@
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF('p', 'mm', 'a4');
 
-                // Header
                 doc.setFillColor(45, 90, 39);
                 doc.rect(0, 0, 210, 20, 'F');
                 doc.setTextColor(255, 255, 255);
                 doc.text("LAPORAN TANAH SIMPLY STAY", 105, 13, { align: "center" });
 
-                // Maklumat
                 doc.setTextColor(0, 0, 0);
                 doc.setFontSize(12);
                 doc.text(`No Lot: ${lotNo}`, 15, 35);
@@ -233,7 +261,6 @@
                 doc.text(`Luas: ${document.getElementById('lotArea').innerText}`, 15, 51);
                 doc.text(`Tarikh: ${new Date().toLocaleDateString()}`, 15, 59);
 
-                // Gambar Peta
                 const imgData = mapCanvas.toDataURL('image/png');
                 doc.addImage(imgData, 'PNG', 15, 70, 180, 120);
 
