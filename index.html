@@ -136,49 +136,53 @@
 
         var selectedFeature = null;
 
-        // FUNGSI KLIK PETA UNTUK LOT DAN SEMPADAN
+        // FUNGSI KLIK YANG DIPERBAIKI (LOOPING SEMUA FEATURE PADA PIXEL)
         map.on('singleclick', function(evt) {
-            var featureAtPixel = map.forEachFeatureAtPixel(evt.pixel, function(f, l) {
-                return {feature: f, layer: l};
+            var foundSempadan = null;
+            var foundLot = null;
+
+            map.forEachFeatureAtPixel(evt.pixel, function(f, l) {
+                // Utamakan mengesan sempadan dahulu
+                if (l === lyr_batusempadan_0 || l === lyr_tandasempadan13clean_1) {
+                    foundSempadan = { feature: f, layer: l };
+                }
+                // Jika bukan sempadan, simpan sebagai lot
+                if (l === lyr_LOTFINAL_2) {
+                    foundLot = { feature: f, layer: l };
+                }
             });
 
-            if (featureAtPixel) {
-                var f = featureAtPixel.feature;
-                var l = featureAtPixel.layer;
+            // 1. JIKA KLIK PADA SEMPADAN (Keutamaan Tinggi)
+            if (foundSempadan) {
+                var lonLat = ol.proj.toLonLat(evt.coordinate);
+                content.innerHTML = `
+                    <div class="text-xs">
+                        <b class="text-blue-700">KOORDINAT SEMPADAN</b><hr class="my-1">
+                        <b>Lat:</b> ${lonLat[1].toFixed(7)}<br>
+                        <b>Lon:</b> ${lonLat[0].toFixed(7)}
+                    </div>`;
+                overlay.setPosition(evt.coordinate);
+            } 
+            // 2. JIKA KLIK PADA LOT (Keutamaan Kedua)
+            else if (foundLot) {
+                var f = foundLot.feature;
                 var props = f.getProperties();
 
-                // LOGIK UNTUK LAYER LOT
-                if (l === lyr_LOTFINAL_2) {
-                    if (selectedFeature) selectedFeature.setStyle(undefined);
-                    f.setStyle(highlightStyle);
-                    selectedFeature = f;
+                if (selectedFeature) selectedFeature.setStyle(undefined);
+                f.setStyle(highlightStyle);
+                selectedFeature = f;
 
-                    updateSidebar(props);
-                    
-                    content.innerHTML = `
-                        <div class="text-xs">
-                            <b class="text-green-700">MAKLUMAT LOT</b><hr class="my-1">
-                            <b>No Lot:</b> ${props['NO_LOT'] || '-'}<br>
-                            <b>Pemilik:</b> ${props['tsp — pe'] || '-'}<br>
-                            <b>Luas:</b> ${props['AREA'] || '0'} m²
-                        </div>`;
-                    overlay.setPosition(evt.coordinate);
-                } 
-                // LOGIK UNTUK LAYER SEMPADAN (BATU ATAU TANDA)
-                else if (l === lyr_batusempadan_0 || l === lyr_tandasempadan13clean_1) {
-                    var coord = evt.coordinate;
-                    var lonLat = ol.proj.toLonLat(coord);
-                    
-                    content.innerHTML = `
-                        <div class="text-xs">
-                            <b class="text-blue-700">KOORDINAT SEMPADAN</b><hr class="my-1">
-                            <b>Lat:</b> ${lonLat[1].toFixed(7)}<br>
-                            <b>Lon:</b> ${lonLat[0].toFixed(7)}
-                        </div>`;
-                    overlay.setPosition(evt.coordinate);
-                }
-            } else {
-                // Sembunyikan popup jika kawasan kosong ditekan
+                updateSidebar(props);
+                
+                content.innerHTML = `
+                    <div class="text-xs">
+                        <b class="text-green-700">MAKLUMAT LOT</b><hr class="my-1">
+                        <b>Lot:</b> ${props['NO_LOT'] || '-'}<br>
+                        <b>Pemilik:</b> ${props['tsp — pe'] || '-'}
+                    </div>`;
+                overlay.setPosition(evt.coordinate);
+            } 
+            else {
                 overlay.setPosition(undefined);
             }
         });
