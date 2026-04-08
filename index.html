@@ -136,34 +136,35 @@
 
         var selectedFeature = null;
 
-        // FUNGSI KLIK YANG DIPERBAIKI (LOOPING SEMUA FEATURE PADA PIXEL)
+        // FUNGSI KLIK UTAMA
         map.on('singleclick', function(evt) {
             var foundSempadan = null;
             var foundLot = null;
 
+            // hitTolerance: 5 membolehkan klik dikesan walaupun lari sikit dari titik
             map.forEachFeatureAtPixel(evt.pixel, function(f, l) {
-                // Utamakan mengesan sempadan dahulu
                 if (l === lyr_batusempadan_0 || l === lyr_tandasempadan13clean_1) {
                     foundSempadan = { feature: f, layer: l };
                 }
-                // Jika bukan sempadan, simpan sebagai lot
-                if (l === lyr_LOTFINAL_2) {
+                if (l === lyr_LOTFINAL_2 && !foundLot) {
                     foundLot = { feature: f, layer: l };
                 }
-            });
+            }, { hitTolerance: 5 });
 
-            // 1. JIKA KLIK PADA SEMPADAN (Keutamaan Tinggi)
+            // KEUTAMAAN 1: BATU SEMPADAN
             if (foundSempadan) {
-                var lonLat = ol.proj.toLonLat(evt.coordinate);
+                var coord = foundSempadan.feature.getGeometry().getCoordinates();
+                var lonLat = ol.proj.toLonLat(coord);
+                
                 content.innerHTML = `
                     <div class="text-xs">
-                        <b class="text-blue-700">KOORDINAT SEMPADAN</b><hr class="my-1">
+                        <b class="text-blue-700 uppercase">Koordinat Sempadan</b><hr class="my-1">
                         <b>Lat:</b> ${lonLat[1].toFixed(7)}<br>
                         <b>Lon:</b> ${lonLat[0].toFixed(7)}
                     </div>`;
-                overlay.setPosition(evt.coordinate);
+                overlay.setPosition(coord);
             } 
-            // 2. JIKA KLIK PADA LOT (Keutamaan Kedua)
+            // KEUTAMAAN 2: LOT TANAH
             else if (foundLot) {
                 var f = foundLot.feature;
                 var props = f.getProperties();
@@ -176,7 +177,7 @@
                 
                 content.innerHTML = `
                     <div class="text-xs">
-                        <b class="text-green-700">MAKLUMAT LOT</b><hr class="my-1">
+                        <b class="text-green-700 uppercase">Maklumat Lot</b><hr class="my-1">
                         <b>Lot:</b> ${props['NO_LOT'] || '-'}<br>
                         <b>Pemilik:</b> ${props['tsp — pe'] || '-'}
                     </div>`;
